@@ -1,5 +1,5 @@
 "use client";
-
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,32 +14,40 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { toast } from "sonner";
+import { useMutation } from "@tanstack/react-query";
 
 type LoginForm = {
   username: string;
   password: string;
 };
 
-export default function Page() {
+export default function LoginPage() {
   const router = useRouter();
 
-  const [errorMsg, setErrorMsg] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  const loginSchema = z.object({
+    username: z.string().min(1, { message: "此欄位為必填" }),
+    password: z.string().min(1, { message: "請輸入密碼" }),
+  });
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
-  } = useForm<LoginForm>();
+    formState: { errors, isSubmitting },
+  } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+    },
+  });
 
-  const onSubmit = async (data: LoginForm) => {
-    setIsLoading(true);
-    setErrorMsg("");
-
-    console.log("準備登入:", data.username);
-
-    try {
+  const loginMutation = useMutation({
+    mutationFn: async (data: LoginForm) => {
       const res = await signIn("credentials", {
         redirect: false,
         username: data.username,
@@ -48,25 +56,55 @@ export default function Page() {
 
       console.log("登入結果:", res);
 
-      if (res?.ok) {
-        console.log("登入成功，準備跳轉");
-        router.push("/user-portfolio");
-      } else {
-        console.log("登入失敗:", res?.error);
-        // 根據不同的錯誤類型顯示不同的訊息
-        if (res?.error === "CredentialsSignin") {
-          setErrorMsg("登入失敗，帳號或密碼錯誤");
-        } else {
-          setErrorMsg(res?.error || "登入失敗，請稍後再試");
-        }
+      if (!res?.ok) {
+        throw new Error(res?.error || "登入失敗");
       }
-    } catch (error) {
+
+      return res;
+    },
+    onMutate: () => {
+      setIsLoading(true);
+    },
+    onSuccess: () => {
+      toast("登入成功", {
+        description: "正在為您跳轉到用戶面板...",
+        duration: 2000,
+      });
+
+      router.push("/user-portfolio");
+    },
+    onError: (error: Error) => {
       console.error("登入過程發生錯誤:", error);
-      setErrorMsg("登入過程發生錯誤，請稍後再試");
-    } finally {
+
+      // 根據不同的錯誤類型顯示不同的訊息
+      let errorMessage = "登入失敗，請稍後再試";
+
+      if (error.message === "CredentialsSignin") {
+        errorMessage = "登入失敗，帳號或密碼錯誤";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      // 使用 Sonner toast 顯示錯誤訊息
+      toast("登入失敗", {
+        description: errorMessage,
+        duration: 4000,
+        action: {
+          label: "重試",
+          onClick: () => console.log("準備重試登入"),
+        },
+      });
+    },
+    onSettled: () => {
       setIsLoading(false);
-    }
+    },
+  });
+
+  const onSubmit = (data: LoginForm) => {
+    loginMutation.mutate(data);
   };
+
+  const finalIsLoading = isLoading || loginMutation.isPending || isSubmitting;
 
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
@@ -85,11 +123,8 @@ export default function Page() {
                     id="username"
                     type="text"
                     placeholder="輸入帳號"
-                    required
-                    disabled={isLoading}
-                    {...register("username", {
-                      required: "此欄位為必填",
-                    })}
+                    disabled={finalIsLoading}
+                    {...register("username")}
                   />
                   {errors.username && (
                     <p className="text-sm text-red-500">
@@ -111,8 +146,8 @@ export default function Page() {
                     id="password"
                     type="password"
                     placeholder="輸入密碼"
-                    disabled={isLoading}
-                    {...register("password", { required: "請輸入密碼" })}
+                    disabled={finalIsLoading}
+                    {...register("password")}
                   />
                   {errors.password && (
                     <p className="text-sm text-red-500">
@@ -120,16 +155,22 @@ export default function Page() {
                     </p>
                   )}
                 </div>
-                {errorMsg && (
+
+                {loginMutation.error && (
                   <div className="text-sm text-red-500 text-center bg-red-50 p-3 rounded-md">
-                    {errorMsg}
+                    {loginMutation.error.message}
                   </div>
                 )}
 
                 <div className="flex flex-col gap-3">
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "登入中..." : "登入"}
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={finalIsLoading}
+                  >
+                    {finalIsLoading ? "登入中..." : "登入"}
                   </Button>
+
                   <Button
                     variant="outline"
                     className="w-full"

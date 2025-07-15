@@ -1,89 +1,80 @@
 // app/api/auth/[...nextauth]/route.ts
-import NextAuth from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
-import type { NextAuthOptions } from "next-auth";
+import NextAuth from 'next-auth'
+import CredentialsProvider from 'next-auth/providers/credentials'
+import GoogleProvider from 'next-auth/providers/google'
+import { fetchFunc } from '@/lib/axios'
+import type { JWT } from 'next-auth/jwt'
+import type { Session, User } from 'next-auth'
 
-export const authOptions: NextAuthOptions = {
+export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
-    CredentialsProvider({
-      name: "Credentials",
-      credentials: {
-        username: { label: "Username", type: "text" },
-        password: { label: "Password", type: "password" },
-      },
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!
+    }),
 
+    CredentialsProvider({
+      name: 'Credentials',
+      credentials: {
+        username: { label: 'Username', type: 'text' },
+        password: { label: 'Password', type: 'password' }
+      },
       async authorize(credentials) {
-        console.log("開始驗證用戶:", credentials?.username);
+        if (!credentials?.username || !credentials?.password) {
+          return null
+        }
+
+        const { username, password } = credentials as { username: string; password: string }
 
         try {
-          const res = await fetch("http://localhost:3001/api/auth/login", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-            body: JSON.stringify({
-              username: credentials?.username,
-              password: credentials?.password,
-            }),
-          });
+          const result = await fetchFunc({
+            key: 'Login',
+            request: {
+              username: username,
+              password: password
+            }
+          })
 
-          if (!res.ok) {
-            console.log("API 回應失敗:", res.status, res.statusText);
-            return null;
-          }
-
-          const data = await res.json();
-
-          if (data?.data?.user) {
+          if (result && result.data?.user) {
             return {
-              id: data.data.user.id.toString(),
-              name: data.data.user.username,
-              email: data.data.user.email,
-              token: data.data.token,
-              refreshToken: data.data.refreshToken,
-            };
-          } else {
-            console.log("登入失敗: 無效的回應格式");
-            return null;
+              id: String(result.data.user.id),
+              email: result.data.user.email,
+              name: result.data.user.username,
+              accessToken: result.data.token
+            }
           }
+          return null
         } catch (error) {
-          console.error("Login error:", error);
-          return null;
+          console.error('登入驗證失敗:', error)
+          return null
         }
-      },
-    }),
+      }
+    })
   ],
   session: {
-    strategy: "jwt",
+    strategy: 'jwt'
   },
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user }: { token: JWT; user?: User }) {
       if (user) {
-        token.accessToken = user.token;
-        token.refreshToken = user.refreshToken;
-        token.id = user.id;
+        token.accessToken = user.accessToken
+        token.refreshToken = user.refreshToken
+        token.id = user.id
       }
-      return token;
+      return token
     },
-    async session({ session, token }) {
-      // 使用類型斷言來解決類型問題
-      session.accessToken = token.accessToken as string;
-      session.refreshToken = token.refreshToken as string;
-
-      if (session.user && token.id) {
-        session.user.id = token.id as string;
+    async session({ session, token }: { session: Session; token: JWT }) {
+      if (token) {
+        session.accessToken = token.accessToken
+        session.refreshToken = token.refreshToken
       }
-
-      return session;
-    },
+      return session
+    }
   },
   pages: {
-    signIn: "/login",
+    signIn: '/login'
   },
-  debug: process.env.NODE_ENV === "development",
-};
+  debug: process.env.NODE_ENV === 'development'
+})
 
-const handler = NextAuth(authOptions);
-
-export { handler as GET, handler as POST };
+export const { GET, POST } = handlers

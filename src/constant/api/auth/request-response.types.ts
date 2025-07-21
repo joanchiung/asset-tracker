@@ -7,6 +7,7 @@ interface LoginRequest {
 
 interface LoginResponse {
   token: string
+  refreshToken: string
   user: {
     id: number
     username: string
@@ -47,10 +48,12 @@ type Register = ApiDefinition<
   UserInfo
 >
 
+type Logout = ApiDefinition<'/auth/logout', EnumApiMethod.POST, undefined, undefined, undefined>
+
 export type AuthApiList = {
   Login: Login
   Register: Register
-  // LogOut: LogOut
+  Logout: Logout
   // AuthOTP: AuthOTP
   // AuthOTPVerify: AuthOTPVerify
   // Register: Register

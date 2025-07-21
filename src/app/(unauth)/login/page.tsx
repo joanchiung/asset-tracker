@@ -1,5 +1,6 @@
 'use client'
 /* Next.js  */
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -15,10 +16,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
-/* tanstack */
-import { useMutation } from '@tanstack/react-query'
-import { fetchFunc } from '@/lib/axios'
-
 /* NextAuth */
 import { signIn } from 'next-auth/react'
 
@@ -29,6 +26,7 @@ type LoginForm = {
 
 export default function LoginPage() {
   const router = useRouter()
+  const [isLoading, setIsLoading] = useState(false)
 
   const loginSchema = z.object({
     username: z.string().min(1, { message: '此欄位為必填' }),
@@ -38,7 +36,7 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting }
+    formState: { errors }
   } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -47,44 +45,24 @@ export default function LoginPage() {
     }
   })
 
-  const loginMutation = useMutation({
-    mutationFn: async (data: LoginForm) => {
-      const res = await fetchFunc({
-        key: 'Login',
-        request: {
-          username: data.username,
-          password: data.password
-        }
+  const onSubmit = async (data: LoginForm) => {
+    setIsLoading(true)
+    try {
+      const result = await signIn('credentials', {
+        username: data.username,
+        password: data.password,
+        redirect: false
       })
-      return res
-    },
-    onSuccess: () => {
-      toast('登入成功', {
-        description: '正在為您跳轉到用戶面板...',
-        duration: 2000
-      })
-      router.push('/user-portfolio')
-    },
 
-    onError: (error: Error) => {
-      const errorMessage =
-        error.message === 'CredentialsSignin'
-          ? '登入失敗，帳號或密碼錯誤'
-          : error.message || '登入失敗，請稍後再試'
-
-      toast('登入失敗', {
-        description: errorMessage,
-        duration: 4000,
-        action: {
-          label: '重試',
-          onClick: () => console.log('準備重試登入')
-        }
-      })
+      if (result?.ok) {
+        toast('登入成功', { description: '正在為您跳轉到用戶面板...', duration: 2000 })
+        router.push('/user-portfolio')
+      } else {
+        toast('登入失敗', { description: result?.error || '登入失敗，請稍後再試', duration: 4000 })
+      }
+    } finally {
+      setIsLoading(false)
     }
-  })
-
-  const onSubmit = (data: LoginForm) => {
-    loginMutation.mutate(data)
   }
 
   const handleGoogleLogin = async () => {
@@ -99,8 +77,6 @@ export default function LoginPage() {
       })
     }
   }
-
-  const finalIsLoading = loginMutation.isPending || isSubmitting
 
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
@@ -119,7 +95,7 @@ export default function LoginPage() {
                     id="username"
                     type="text"
                     placeholder="輸入帳號"
-                    disabled={finalIsLoading}
+                    disabled={isLoading}
                     {...register('username')}
                   />
                   {errors.username && (
@@ -140,7 +116,7 @@ export default function LoginPage() {
                     id="password"
                     type="password"
                     placeholder="輸入密碼"
-                    disabled={finalIsLoading}
+                    disabled={isLoading}
                     {...register('password')}
                   />
                   {errors.password && (
@@ -148,15 +124,9 @@ export default function LoginPage() {
                   )}
                 </div>
 
-                {loginMutation.error && (
-                  <div className="text-sm text-red-500 text-center bg-red-50 p-3 rounded-md">
-                    {loginMutation.error.message}
-                  </div>
-                )}
-
                 <div className="flex flex-col gap-3">
-                  <Button type="submit" className="w-full" disabled={finalIsLoading}>
-                    {finalIsLoading ? '登入中...' : '登入'}
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? '登入中...' : '登入'}
                   </Button>
 
                   <Button

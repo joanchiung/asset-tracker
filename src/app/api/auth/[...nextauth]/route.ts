@@ -36,12 +36,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           })
 
           if (result && result.data?.user) {
-            return {
+            const userObj = {
               id: String(result.data.user.id),
               email: result.data.user.email,
               name: result.data.user.username,
-              accessToken: result.data.token
+              accessToken: result.data.token,
+              refreshToken: result.data.refreshToken
             }
+            return userObj
           }
           return null
         } catch (error) {
@@ -56,7 +58,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, user }: { token: JWT; user?: User }) {
-      if (user) {
+      if (user?.accessToken) {
         token.accessToken = user.accessToken
         token.refreshToken = user.refreshToken
         token.id = user.id
@@ -64,7 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token
     },
     async session({ session, token }: { session: Session; token: JWT }) {
-      if (token) {
+      if (token.accessToken) {
         session.accessToken = token.accessToken
         session.refreshToken = token.refreshToken
       }

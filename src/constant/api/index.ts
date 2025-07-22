@@ -33,7 +33,7 @@ export const apiList: { [K in keyof RootApiList]: BasicApiInfo<K> } = {
   // 認證相關
   Login: { url: '/auth/login', method: EnumApiMethod.POST },
   Register: { url: '/auth/register', method: EnumApiMethod.POST },
-  // Logout: { url: '/auth/logout', method: EnumApiMethod.POST },
+  Logout: { url: '/auth/logout', method: EnumApiMethod.POST },
   // ForgotPassword: { url: '/auth/forgot-password', method: EnumApiMethod.POST },
   // ResetPassword: { url: '/auth/reset-password', method: EnumApiMethod.POST },
   // ChangePassword: { url: '/auth/change-password', method: EnumApiMethod.POST },

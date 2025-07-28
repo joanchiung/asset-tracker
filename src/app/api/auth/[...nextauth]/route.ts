@@ -1,18 +1,12 @@
 // app/api/auth/[...nextauth]/route.ts
 import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import GoogleProvider from 'next-auth/providers/google'
 import { fetchFunc } from '@/lib/axios'
 import type { JWT } from 'next-auth/jwt'
 import type { Session, User } from 'next-auth'
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!
-    }),
-
     CredentialsProvider({
       name: 'Credentials',
       credentials: {

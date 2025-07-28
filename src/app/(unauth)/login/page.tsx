@@ -77,19 +77,6 @@ export default function LoginPage() {
     }
   }
 
-  const handleGoogleLogin = async () => {
-    try {
-      await signIn('google', {
-        callbackUrl: '/user-portfolio'
-      })
-    } catch {
-      toast('Google 登入失敗', {
-        description: '請稍後再試',
-        duration: 4000
-      })
-    }
-  }
-
   return (
     <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
       <div className="w-full max-w-sm">
@@ -139,15 +126,6 @@ export default function LoginPage() {
                 <div className="flex flex-col gap-3">
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? '登入中...' : '登入'}
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    type="button"
-                    onClick={handleGoogleLogin}
-                  >
-                    使用 Google 帳號登入
                   </Button>
                 </div>
               </div>

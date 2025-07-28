@@ -1,17 +1,23 @@
 'use client'
-import React from 'react'
+import React, { useState } from 'react'
 
 /* tanstack */
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchFunc } from '@/lib/axios'
 
 /* next-auth */
 import { signOut, useSession } from 'next-auth/react'
 
-/* component */
+/* react-hook-form & Zod */
+import { useForm, UseFormRegister, Path } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+
+/* components & icons */
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import {
@@ -21,16 +27,107 @@ import {
   Shield,
   Phone,
   Clock,
-  Key,
   LogOut,
   CheckCircle,
-  XCircle
+  XCircle,
+  Edit2,
+  Save,
+  X,
+  LucideProps
 } from 'lucide-react'
 
-export default function UserPortfolio() {
-  const { data: session, status } = useSession()
+// =================================================================
+// 1. Zod Schema 定義
+// =================================================================
+const updateUserSchema = z.object({
+  username: z
+    .string()
+    .min(3, { message: '用戶名稱長度需介於 3 到 20 字元之間' })
+    .max(20, { message: '用戶名稱長度需介於 3 到 20 字元之間' })
+    .or(z.literal(''))
+    .optional(),
+  phone: z
+    .string()
+    .regex(/^[0-9]{10}$/, { message: '電話號碼必須是 10 位數字' })
+    .or(z.literal(''))
+    .optional()
+})
 
+// 從 Zod schema 推斷出 TypeScript 型別
+type UpdateUserFormData = z.infer<typeof updateUserSchema>
+
+// =================================================================
+// 型別定義
+// =================================================================
+interface InfoItemData {
+  key: keyof UpdateUserFormData | string
+  icon: React.ComponentType<LucideProps>
+  label: string
+  value?: string | number
+  editable?: boolean
+  className?: string
+}
+
+interface InfoItemProps {
+  item: InfoItemData
+  isEditing?: boolean
+  register: UseFormRegister<UpdateUserFormData>
+}
+
+// InfoItem 獨立組件 (無變更)
+const InfoItem = ({ item, isEditing, register }: InfoItemProps) => {
+  const IconComponent = item.icon
+  if (isEditing && item.editable) {
+    return (
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <IconComponent className="h-4 w-4 text-gray-500" />
+          <label htmlFor={item.key} className="text-sm font-medium">
+            {item.label}
+          </label>
+        </div>
+        <Input
+          id={item.key}
+          {...register(item.key as Path<UpdateUserFormData>)}
+          placeholder={`輸入新的${item.label}`}
+          className="h-8 w-48"
+        />
+      </div>
+    )
+  }
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <IconComponent className="h-4 w-4 text-gray-500" />
+        <span className="text-sm font-medium">{item.label}</span>
+      </div>
+      <span className={`text-sm ${item.className || ''}`}>{item.value || '-'}</span>
+    </div>
+  )
+}
+
+export default function UserPortfolio() {
+  const [isEditing, setIsEditing] = useState(false)
+  const { data: session, status } = useSession()
+  const queryClient = useQueryClient()
   const token = session?.accessToken
+
+  // =================================================================
+  // 2. 整合 Zod Resolver 到 useForm
+  // =================================================================
+  const {
+    register,
+    handleSubmit,
+    reset,
+    setValue,
+    formState: { errors }
+  } = useForm<UpdateUserFormData>({
+    resolver: zodResolver(updateUserSchema),
+    defaultValues: {
+      username: '',
+      phone: ''
+    }
+  })
 
   const initialUserInfo = {
     id: '',
@@ -48,64 +145,103 @@ export default function UserPortfolio() {
     queryFn: () =>
       fetchFunc({
         key: 'GetProfile',
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: { Authorization: `Bearer ${token}` }
       }),
     select: (data) => data.data?.user,
     enabled: !!token
   })
 
+  const updateUserMutation = useMutation({
+    mutationFn: (updatedData: UpdateUserFormData) =>
+      fetchFunc({
+        key: 'UpdateProfile',
+        request: updatedData,
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+    onSuccess: () => {
+      toast.success('用戶資料更新成功！')
+      queryClient.invalidateQueries({ queryKey: ['GetProfile'] })
+      setIsEditing(false)
+    },
+    onError: (error: Error) => {
+      toast.error('更新失敗', {
+        description: error.message || '請稍後再試'
+      })
+    }
+  })
+
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetchFunc({
+      return await fetchFunc({
         key: 'Logout',
         headers: {
           Authorization: `Bearer ${token}`
         }
       })
-      return res
     },
     onSuccess: () => {
-      signOut({
-        redirect: true,
-        callbackUrl: '/login'
-      })
-
-      toast('登出成功', {
-        duration: 2000
-      })
+      signOut({ redirect: true, callbackUrl: '/login' })
+      toast.success('登出成功')
     },
-
-    onError: (error: Error) => {
+    onError: (error) => {
       console.error('自定義登出 API 失敗:', error)
-
-      toast('登出失敗', {
-        description: error.message || '登出失敗，請稍後再試',
-        duration: 4000,
-        action: {
-          label: '重試',
-          onClick: () => handleLogout()
-        }
+      toast.error('登出失敗', {
+        description: error.message || '請稍後再試'
       })
     }
   })
 
-  const handleLogout = () => {
-    logoutMutation.mutate()
+  // =================================================================
+  // 3. 簡化後的 onSubmit 函式
+  // =================================================================
+  const onSubmit = (data: UpdateUserFormData) => {
+    const updatedFields: Partial<UpdateUserFormData> = {}
+
+    if (data.username && data.username !== userInfo.username) {
+      updatedFields.username = data.username
+    }
+    if (data.phone && data.phone !== userInfo.phone) {
+      updatedFields.phone = data.phone
+    }
+
+    if (Object.keys(updatedFields).length > 0) {
+      updateUserMutation.mutate(updatedFields)
+    } else {
+      toast.info('資料未變更')
+      setIsEditing(false)
+    }
   }
 
-  if (status === 'loading' || isLoading) {
-    return <div>載入中...</div>
+  const handleEdit = () => {
+    setValue('username', userInfo?.username || '')
+    setValue('phone', userInfo?.phone || '')
+    setIsEditing(true)
   }
 
-  if (!token) {
-    return <div>找不到認證 token，請重新登入</div>
+  const handleCancel = () => {
+    reset({
+      username: userInfo?.username || '',
+      phone: userInfo?.phone || ''
+    })
+    setIsEditing(false)
   }
+
+  const userInfoItems: InfoItemData[] = [
+    { key: 'username', icon: User, label: '用戶名稱', value: userInfo.username, editable: true },
+    { key: 'phone', icon: Phone, label: '電話號碼', value: userInfo.phone, editable: true },
+    { key: 'email', icon: Mail, label: '電子郵件', value: userInfo.email, editable: false }
+  ]
+
+  const timestampItems: InfoItemData[] = [
+    { key: 'createdAt', icon: Calendar, label: '註冊時間', value: userInfo.createdAt },
+    { key: 'updatedAt', icon: Clock, label: '最後更新', value: userInfo.updatedAt }
+  ]
+
+  if (status === 'loading' || isLoading) return <div>載入中...</div>
+  if (!token) return <div>找不到認證 token，請重新登入</div>
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4 space-y-6">
-      {/* 歡迎標題 */}
       <div className="text-center space-y-2">
         <div className="flex items-center justify-center gap-2">
           <CheckCircle className="h-8 w-8 text-green-500" />
@@ -115,78 +251,67 @@ export default function UserPortfolio() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* 用戶資訊卡片 */}
         <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              用戶資訊
-            </CardTitle>
-            <CardDescription>您的個人帳戶詳細資料</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <CardHeader>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">用戶名稱</span>
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    用戶資訊
+                  </CardTitle>
+                  <CardDescription>您的個人帳戶詳細資料</CardDescription>
                 </div>
-                <span className="text-sm">{userInfo.username}</span>
+                {!isEditing ? (
+                  <Button variant="outline" onClick={handleEdit} type="button">
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    編輯
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button size="sm" type="submit" disabled={updateUserMutation.isPending}>
+                      <Save className="h-4 w-4 mr-1" />
+                      {updateUserMutation.isPending ? '儲存中...' : '儲存'}
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleCancel} type="button">
+                      <X className="h-4 w-4 mr-1" />
+                      取消
+                    </Button>
+                  </div>
+                )}
               </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">電子郵件</span>
-                </div>
-                <span className="text-sm">{userInfo.email}</span>
+            </CardHeader>
+            <CardContent className="space-y-4 mt-5">
+              <div className="space-y-4">
+                {/* ================================================================= */}
+                {/* 4. 渲染表單與錯誤訊息 */}
+                {/* ================================================================= */}
+                {userInfoItems.map((item) => (
+                  <div key={item.key}>
+                    <InfoItem item={item} isEditing={isEditing} register={register} />
+                    {isEditing && item.editable && errors[item.key as keyof UpdateUserFormData] && (
+                      <p className="text-xs text-right text-red-500 mt-1 pr-1">
+                        {errors[item.key as keyof UpdateUserFormData]?.message}
+                      </p>
+                    )}
+                  </div>
+                ))}
+                <Separator className="my-4" />
+                {timestampItems.map((item) => (
+                  <InfoItem key={item.key} item={item} isEditing={false} register={register} />
+                ))}
               </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">電話號碼</span>
-                </div>
-                <span className="text-sm">{userInfo.phone}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Key className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">用戶ID</span>
-                </div>
-                <span className="text-sm font-mono">{userInfo.id}</span>
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">註冊時間</span>
-                </div>
-                <span className="text-sm">{userInfo.createdAt}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm font-medium">最後更新</span>
-                </div>
-                <span className="text-sm">{userInfo.updatedAt}</span>
-              </div>
-            </div>
-          </CardContent>
+            </CardContent>
+          </form>
         </Card>
-
-        {/* 帳戶狀態卡片 */}
+        {/* 帳戶狀態 */}
         <Card className="col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Shield className="h-5 w-5" />
               帳戶狀態
             </CardTitle>
-            <CardDescription>您的帳戶安全狀態</CardDescription>
+            <CardDescription>您的帳戶安全與 Session 狀態</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-4">
@@ -204,7 +329,6 @@ export default function UserPortfolio() {
                   {userInfo.isActive ? '活躍' : '非活躍'}
                 </Badge>
               </div>
-
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">驗證狀態</span>
                 <Badge
@@ -219,48 +343,18 @@ export default function UserPortfolio() {
                   {userInfo.isVerified ? '已驗證' : '未驗證'}
                 </Badge>
               </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium">Session 資訊</h4>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">用戶名稱</span>
-                  <span className="text-xs">{session.user.name}</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Session Email</span>
-                  <span className="text-xs">{session.user.email}</span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Access Token</span>
-                  <Badge variant="outline" className="text-xs">
-                    {session.accessToken ? '有效' : '無效'}
-                  </Badge>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Refresh Token</span>
-                  <Badge variant="outline" className="text-xs">
-                    {session.refreshToken ? '有效' : '無效'}
-                  </Badge>
-                </div>
-              </div>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      <div className="flex justify-center">
+      {/* 登出按鈕 */}
+      <div className="flex justify-center pt-4">
         <Button
           variant="destructive"
           size="lg"
           className="w-full max-w-md flex items-center gap-2"
           disabled={logoutMutation.isPending}
-          onClick={handleLogout}
+          onClick={() => logoutMutation.mutate()}
         >
           <LogOut className="h-4 w-4" />
           {logoutMutation.isPending ? '登出中...' : '登出'}

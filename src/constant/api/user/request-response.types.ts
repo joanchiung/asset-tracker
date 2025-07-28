@@ -14,8 +14,8 @@ interface UserProfile {
 }
 
 interface UpdateProfileRequest {
-  username: string
-  phone: string
+  username?: string
+  phone?: string
 }
 
 type GetProfile = ApiDefinition<

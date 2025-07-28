@@ -54,12 +54,24 @@ export default function LoginPage() {
         redirect: false
       })
 
-      if (result?.ok) {
-        toast('登入成功', { description: '正在為您跳轉到用戶面板...', duration: 2000 })
+      if (result && !result.error) {
+        toast.success('登入成功', {
+          description: '正在為您跳轉到用戶面板...',
+          duration: 2000
+        })
+
         router.push('/user-portfolio')
       } else {
-        toast('登入失敗', { description: result?.error || '登入失敗，請稍後再試', duration: 4000 })
+        toast.error('登入失敗', {
+          description: '用戶名稱或密碼錯誤，請重新確認。',
+          duration: 4000
+        })
       }
+    } catch (error) {
+      console.error('An unexpected error occurred during sign in:', error)
+      toast.error('登入時發生預期外的錯誤', {
+        description: '請檢查您的網路連線並稍後再試。'
+      })
     } finally {
       setIsLoading(false)
     }

@@ -65,6 +65,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.refreshToken = token.refreshToken
       }
       return session
+    },
+    // 新增：處理已登入用戶訪問登入頁的重導向
+    async redirect({ url, baseUrl }) {
+      // 如果用戶已登入且嘗試訪問登入相關頁面，重導向到 dashboard
+      if (url.includes('/login') || url.includes('/signup') || url.includes('/forget-pwd')) {
+        return `${baseUrl}/user-portfolio`
+      }
+
+      // 允許相對 URL
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`
+      }
+
+      // 允許同域的 URL
+      if (new URL(url).origin === baseUrl) {
+        return url
+      }
+
+      return baseUrl
     }
   },
   pages: {

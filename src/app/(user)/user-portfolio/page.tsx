@@ -1,19 +1,14 @@
 'use client'
 import React, { useState } from 'react'
 
-/* tanstack */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchFunc } from '@/lib/axios'
 
-/* next-auth */
 import { signOut, useSession } from 'next-auth/react'
-
-/* react-hook-form & Zod */
 import { useForm, UseFormRegister, Path } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 
-/* components & icons */
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -36,9 +31,6 @@ import {
   LucideProps
 } from 'lucide-react'
 
-// =================================================================
-// 1. Zod Schema 定義
-// =================================================================
 const updateUserSchema = z.object({
   username: z
     .string()
@@ -53,12 +45,8 @@ const updateUserSchema = z.object({
     .optional()
 })
 
-// 從 Zod schema 推斷出 TypeScript 型別
 type UpdateUserFormData = z.infer<typeof updateUserSchema>
 
-// =================================================================
-// 型別定義
-// =================================================================
 interface InfoItemData {
   key: keyof UpdateUserFormData | string
   icon: React.ComponentType<LucideProps>
@@ -74,7 +62,6 @@ interface InfoItemProps {
   register: UseFormRegister<UpdateUserFormData>
 }
 
-// InfoItem 獨立組件 (無變更)
 const InfoItem = ({ item, isEditing, register }: InfoItemProps) => {
   const IconComponent = item.icon
   if (isEditing && item.editable) {
@@ -112,9 +99,6 @@ export default function UserPortfolio() {
   const queryClient = useQueryClient()
   const token = session?.accessToken
 
-  // =================================================================
-  // 2. 整合 Zod Resolver 到 useForm
-  // =================================================================
   const {
     register,
     handleSubmit,
@@ -185,15 +169,14 @@ export default function UserPortfolio() {
     },
     onError: (error) => {
       console.error('自定義登出 API 失敗:', error)
+      signOut({ redirect: true, callbackUrl: '/login' })
+
       toast.error('登出失敗', {
         description: error.message || '請稍後再試'
       })
     }
   })
 
-  // =================================================================
-  // 3. 簡化後的 onSubmit 函式
-  // =================================================================
   const onSubmit = (data: UpdateUserFormData) => {
     const updatedFields: Partial<UpdateUserFormData> = {}
 
@@ -283,9 +266,6 @@ export default function UserPortfolio() {
             </CardHeader>
             <CardContent className="space-y-4 mt-5">
               <div className="space-y-4">
-                {/* ================================================================= */}
-                {/* 4. 渲染表單與錯誤訊息 */}
-                {/* ================================================================= */}
                 {userInfoItems.map((item) => (
                   <div key={item.key}>
                     <InfoItem item={item} isEditing={isEditing} register={register} />
@@ -304,7 +284,6 @@ export default function UserPortfolio() {
             </CardContent>
           </form>
         </Card>
-        {/* 帳戶狀態 */}
         <Card className="col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -347,7 +326,6 @@ export default function UserPortfolio() {
           </CardContent>
         </Card>
       </div>
-      {/* 登出按鈕 */}
       <div className="flex justify-center pt-4">
         <Button
           variant="destructive"

@@ -34,9 +34,9 @@ export const apiList: { [K in keyof RootApiList]: BasicApiInfo<K> } = {
   Login: { url: '/auth/login', method: EnumApiMethod.POST },
   Register: { url: '/auth/register', method: EnumApiMethod.POST },
   Logout: { url: '/auth/logout', method: EnumApiMethod.POST },
-  // ForgotPassword: { url: '/auth/forgot-password', method: EnumApiMethod.POST },
-  // ResetPassword: { url: '/auth/reset-password', method: EnumApiMethod.POST },
-  // ChangePassword: { url: '/auth/change-password', method: EnumApiMethod.POST },
+  ForgetPWD: { url: '/auth/forgot-password', method: EnumApiMethod.POST },
+  ResetPWD: { url: '/auth/reset-password', method: EnumApiMethod.POST },
+  ChangePWD: { url: '/auth/change-password', method: EnumApiMethod.POST },
 
   // 用戶管理
   GetProfile: { url: '/user/profile', method: EnumApiMethod.GET },

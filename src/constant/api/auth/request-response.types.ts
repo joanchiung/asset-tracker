@@ -32,6 +32,22 @@ interface UserInfo {
   createdAt: string
 }
 
+export interface Email {
+  email: string
+}
+
+interface ResetPWDrequest {
+  token: string
+  newPassword: string
+  confirmNewPassword: string
+}
+
+interface ChangePWDrequest {
+  currentPassword: string
+  newPassword: string
+  confirmNewPassword: string
+}
+
 type Login = ApiDefinition<
   '/auth/login',
   EnumApiMethod.POST,
@@ -50,15 +66,36 @@ type Register = ApiDefinition<
 
 type Logout = ApiDefinition<'/auth/logout', EnumApiMethod.POST, undefined, undefined, undefined>
 
+type ForgetPWD = ApiDefinition<
+  '/auth/forgot-password',
+  EnumApiMethod.POST,
+  undefined,
+  Email,
+  undefined
+>
+
+type ResetPWD = ApiDefinition<
+  '/auth/reset-password',
+  EnumApiMethod.POST,
+  undefined,
+  ResetPWDrequest,
+  undefined
+>
+
+type ChangePWD = ApiDefinition<
+  '/auth/change-password',
+  EnumApiMethod.POST,
+  undefined,
+  ChangePWDrequest,
+  undefined
+>
+
 export type AuthApiList = {
   Login: Login
   Register: Register
   Logout: Logout
-  // AuthOTP: AuthOTP
-  // AuthOTPVerify: AuthOTPVerify
-  // Register: Register
-  // ForgetPassword: ForgetPassword
-  // ForgetPWDAndResetPWD: ForgetPWDAndResetPWD
-  // ResetPassword: ResetPassword
-  // GetAuthUser: GetAuthUser
+
+  ForgetPWD: ForgetPWD
+  ResetPWD: ResetPWD
+  ChangePWD: ChangePWD
 }

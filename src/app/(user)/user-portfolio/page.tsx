@@ -1,114 +1,37 @@
 'use client'
-import React, { useState } from 'react'
-
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import React from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { fetchFunc } from '@/lib/axios'
-
 import { signOut, useSession } from 'next-auth/react'
-import { useForm, UseFormRegister, Path } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-
 import { toast } from 'sonner'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import {
-  User,
-  Mail,
-  Calendar,
-  Shield,
-  Phone,
-  Clock,
-  LogOut,
-  CheckCircle,
-  XCircle,
-  Edit2,
-  Save,
-  X,
-  LucideProps
-} from 'lucide-react'
+import { LogOut, CheckCircle } from 'lucide-react'
+import { UserInfoCard } from './components/UserInfoCard'
+import { AccountStatusCard } from './components/AccountStatusCard'
 
-import { PasswordChangeDialog } from './PasswordChangeDialog'
-import { updateUserSchema, UpdateUserFormData } from '@/lib/validations'
-
-interface InfoItemData {
-  key: keyof UpdateUserFormData | string
-  icon: React.ComponentType<LucideProps>
-  label: string
-  value?: string | number
-  editable?: boolean
-  className?: string
+export interface UserProfile {
+  email: string
+  username: string
+  phone: string
+  createdAt: string
+  updatedAt: string
+  isActive: boolean
+  isVerified: boolean
 }
 
-interface InfoItemProps {
-  item: InfoItemData
-  isEditing?: boolean
-  register: UseFormRegister<UpdateUserFormData>
-}
-
-const InfoItem = ({ item, isEditing, register }: InfoItemProps) => {
-  const IconComponent = item.icon
-  if (isEditing && item.editable) {
-    return (
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <IconComponent className="h-4 w-4 text-gray-500" />
-          <label htmlFor={item.key} className="text-sm font-medium">
-            {item.label}
-          </label>
-        </div>
-        <Input
-          id={item.key}
-          {...register(item.key as Path<UpdateUserFormData>)}
-          placeholder={`輸入新的${item.label}`}
-          className="h-8 w-48"
-        />
-      </div>
-    )
-  }
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <IconComponent className="h-4 w-4 text-gray-500" />
-        <span className="text-sm font-medium">{item.label}</span>
-      </div>
-      <span className={`text-sm ${item.className || ''}`}>{item.value || '-'}</span>
-    </div>
-  )
+const initialUserInfo = {
+  email: '',
+  username: '',
+  phone: '',
+  createdAt: '',
+  updatedAt: '',
+  isActive: false,
+  isVerified: false
 }
 
 export default function UserPortfolio() {
-  const [isEditing, setIsEditing] = useState(false)
   const { data: session, status } = useSession()
-  const queryClient = useQueryClient()
   const token = session?.accessToken
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    setValue,
-    formState: { errors }
-  } = useForm<UpdateUserFormData>({
-    resolver: zodResolver(updateUserSchema),
-    defaultValues: {
-      username: '',
-      phone: ''
-    }
-  })
-
-  const initialUserInfo = {
-    id: '',
-    email: '',
-    username: '',
-    phone: '',
-    createdAt: '',
-    updatedAt: '',
-    isActive: false,
-    isVerified: false
-  }
 
   const { data: userInfo = initialUserInfo, isLoading } = useQuery({
     queryKey: ['GetProfile'],
@@ -121,90 +44,23 @@ export default function UserPortfolio() {
     enabled: !!token
   })
 
-  const updateUserMutation = useMutation({
-    mutationFn: (updatedData: UpdateUserFormData) =>
-      fetchFunc({
-        key: 'UpdateProfile',
-        request: updatedData,
-        headers: { Authorization: `Bearer ${token}` }
-      }),
-    onSuccess: () => {
-      toast.success('用戶資料更新成功！')
-      queryClient.invalidateQueries({ queryKey: ['GetProfile'] })
-      setIsEditing(false)
-    },
-    onError: (error: Error) => {
-      toast.error('更新失敗', {
-        description: error.message || '請稍後再試'
-      })
-    }
-  })
-
   const logoutMutation = useMutation({
     mutationFn: async () => {
       return await fetchFunc({
         key: 'Logout',
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        headers: { Authorization: `Bearer ${token}` }
       })
     },
     onSuccess: () => {
       signOut({ redirect: true, callbackUrl: '/login' })
       toast.success('登出成功')
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('自定義登出 API 失敗:', error)
       signOut({ redirect: true, callbackUrl: '/login' })
-
-      toast.error('登出失敗', {
-        description: error.message || '請稍後再試'
-      })
+      toast.error('登出失敗', { description: error.message || '請稍後再試' })
     }
   })
-
-  const onSubmit = (data: UpdateUserFormData) => {
-    const updatedFields: Partial<UpdateUserFormData> = {}
-
-    if (data.username && data.username !== userInfo.username) {
-      updatedFields.username = data.username
-    }
-    if (data.phone && data.phone !== userInfo.phone) {
-      updatedFields.phone = data.phone
-    }
-
-    if (Object.keys(updatedFields).length > 0) {
-      updateUserMutation.mutate(updatedFields)
-    } else {
-      toast.info('資料未變更')
-      setIsEditing(false)
-    }
-  }
-
-  const handleEdit = () => {
-    setValue('username', userInfo?.username || '')
-    setValue('phone', userInfo?.phone || '')
-    setIsEditing(true)
-  }
-
-  const handleCancel = () => {
-    reset({
-      username: userInfo?.username || '',
-      phone: userInfo?.phone || ''
-    })
-    setIsEditing(false)
-  }
-
-  const userInfoItems: InfoItemData[] = [
-    { key: 'username', icon: User, label: '用戶名稱', value: userInfo.username, editable: true },
-    { key: 'phone', icon: Phone, label: '電話號碼', value: userInfo.phone, editable: true },
-    { key: 'email', icon: Mail, label: '電子郵件', value: userInfo.email, editable: false }
-  ]
-
-  const timestampItems: InfoItemData[] = [
-    { key: 'createdAt', icon: Calendar, label: '註冊時間', value: userInfo.createdAt },
-    { key: 'updatedAt', icon: Clock, label: '最後更新', value: userInfo.updatedAt }
-  ]
 
   if (status === 'loading' || isLoading) return <div>載入中...</div>
   if (!token) return <div>找不到認證 token，請重新登入</div>
@@ -220,107 +76,10 @@ export default function UserPortfolio() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="col-span-1">
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    用戶資訊
-                  </CardTitle>
-                  <CardDescription>您的個人帳戶詳細資料</CardDescription>
-                </div>
-                {!isEditing ? (
-                  <Button variant="outline" onClick={handleEdit} type="button">
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    編輯
-                  </Button>
-                ) : (
-                  <div className="flex gap-2">
-                    <Button size="sm" type="submit" disabled={updateUserMutation.isPending}>
-                      <Save className="h-4 w-4 mr-1" />
-                      {updateUserMutation.isPending ? '儲存中...' : '儲存'}
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleCancel} type="button">
-                      <X className="h-4 w-4 mr-1" />
-                      取消
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4 mt-5">
-              <div className="space-y-4">
-                {userInfoItems.map((item) => (
-                  <div key={item.key}>
-                    <InfoItem item={item} isEditing={isEditing} register={register} />
-                    {isEditing && item.editable && errors[item.key as keyof UpdateUserFormData] && (
-                      <p className="text-xs text-right text-red-500 mt-1 pr-1">
-                        {errors[item.key as keyof UpdateUserFormData]?.message}
-                      </p>
-                    )}
-                  </div>
-                ))}
-                <Separator className="my-4" />
-                {timestampItems.map((item) => (
-                  <InfoItem key={item.key} item={item} isEditing={false} register={register} />
-                ))}
-              </div>
-            </CardContent>
-          </form>
-        </Card>
-
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              帳戶狀態
-            </CardTitle>
-            <CardDescription>您的帳戶安全與 Session 狀態</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">帳戶狀態</span>
-                <Badge
-                  variant={userInfo.isActive ? 'default' : 'secondary'}
-                  className="flex items-center gap-1"
-                >
-                  {userInfo.isActive ? (
-                    <CheckCircle className="h-3 w-3" />
-                  ) : (
-                    <XCircle className="h-3 w-3" />
-                  )}
-                  {userInfo.isActive ? '活躍' : '非活躍'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">驗證狀態</span>
-                <Badge
-                  variant={userInfo.isVerified ? 'default' : 'destructive'}
-                  className="flex items-center gap-1"
-                >
-                  {userInfo.isVerified ? (
-                    <CheckCircle className="h-3 w-3" />
-                  ) : (
-                    <XCircle className="h-3 w-3" />
-                  )}
-                  {userInfo.isVerified ? '已驗證' : '未驗證'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">密碼</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm">＊＊＊＊＊＊＊＊</span>
-
-                  <PasswordChangeDialog />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <UserInfoCard userInfo={userInfo} token={token} />
+        <AccountStatusCard userInfo={userInfo} />
       </div>
+
       <div className="flex justify-center pt-4">
         <Button
           variant="destructive"

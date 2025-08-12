@@ -62,7 +62,7 @@ export function PasswordChangeDialog() {
     }
   })
 
-  function onSubmit(values: ChangePasswordFormData) {
+  const onSubmit = (values: ChangePasswordFormData) => {
     changePasswordMutation.mutate(values)
   }
 

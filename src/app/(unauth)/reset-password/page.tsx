@@ -5,7 +5,6 @@ import { useSearchParams, useRouter } from 'next/navigation'
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,22 +23,9 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { fetchFunc } from '@/lib/axios'
 
-const passwordValidation = new RegExp(
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).+$/
-)
+import { resetPasswordSchema } from '@/lib/validations'
 
-const resetPasswordSchema = z
-  .object({
-    token: z.string().min(1, { message: '無效的重設 token' }),
-    newPassword: z.string().min(8, { message: '密碼至少需要 8 個字元' }).regex(passwordValidation, {
-      message: '密碼需包含大小寫字母、數字及特殊符號'
-    }),
-    confirmNewPassword: z.string()
-  })
-  .refine((data) => data.newPassword === data.confirmNewPassword, {
-    message: '兩次輸入的密碼不一致',
-    path: ['confirmNewPassword']
-  })
+import type { z } from 'zod'
 
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>
 

@@ -7,7 +7,6 @@ import { fetchFunc } from '@/lib/axios'
 import { signOut, useSession } from 'next-auth/react'
 import { useForm, UseFormRegister, Path } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,22 +31,7 @@ import {
 } from 'lucide-react'
 
 import { PasswordChangeDialog } from './PasswordChangeDialog'
-
-const updateUserSchema = z.object({
-  username: z
-    .string()
-    .min(3, { message: '用戶名稱長度需介於 3 到 20 字元之間' })
-    .max(20, { message: '用戶名稱長度需介於 3 到 20 字元之間' })
-    .or(z.literal(''))
-    .optional(),
-  phone: z
-    .string()
-    .regex(/^[0-9]{10}$/, { message: '電話號碼必須是 10 位數字' })
-    .or(z.literal(''))
-    .optional()
-})
-
-type UpdateUserFormData = z.infer<typeof updateUserSchema>
+import { updateUserSchema, UpdateUserFormData } from '@/lib/validations'
 
 interface InfoItemData {
   key: keyof UpdateUserFormData | string
@@ -286,47 +270,6 @@ export default function UserPortfolio() {
             </CardContent>
           </form>
         </Card>
-        {/* <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              帳戶狀態
-            </CardTitle>
-            <CardDescription>您的帳戶安全與 Session 狀態</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">帳戶狀態</span>
-                <Badge
-                  variant={userInfo.isActive ? 'default' : 'secondary'}
-                  className="flex items-center gap-1"
-                >
-                  {userInfo.isActive ? (
-                    <CheckCircle className="h-3 w-3" />
-                  ) : (
-                    <XCircle className="h-3 w-3" />
-                  )}
-                  {userInfo.isActive ? '活躍' : '非活躍'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">驗證狀態</span>
-                <Badge
-                  variant={userInfo.isVerified ? 'default' : 'destructive'}
-                  className="flex items-center gap-1"
-                >
-                  {userInfo.isVerified ? (
-                    <CheckCircle className="h-3 w-3" />
-                  ) : (
-                    <XCircle className="h-3 w-3" />
-                  )}
-                  {userInfo.isVerified ? '已驗證' : '未驗證'}
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card> */}
 
         <Card className="col-span-1">
           <CardHeader>
@@ -366,12 +309,11 @@ export default function UserPortfolio() {
                   {userInfo.isVerified ? '已驗證' : '未驗證'}
                 </Badge>
               </div>
-              {/* --- 新增的密碼欄位 --- */}
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">密碼</span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm">＊＊＊＊＊＊＊＊</span>
-                  {/* 觸發彈出視窗的按鈕，我們稍後會實作 Dialog */}
+
                   <PasswordChangeDialog />
                 </div>
               </div>

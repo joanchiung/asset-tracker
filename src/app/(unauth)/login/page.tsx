@@ -1,43 +1,31 @@
 'use client'
-/* Next.js  */
+
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
-/* component */
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 
-/* form  verify */
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 
-/* NextAuth */
 import { signIn } from 'next-auth/react'
 
-type LoginForm = {
-  username: string
-  password: string
-}
+import { loginSchema, LoginFormData } from '@/lib/validations'
 
 export default function LoginPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
-  const loginSchema = z.object({
-    username: z.string().min(1, { message: '此欄位為必填' }),
-    password: z.string().min(1, { message: '請輸入密碼' })
-  })
-
   const {
     register,
     handleSubmit,
     formState: { errors }
-  } = useForm<LoginForm>({
+  } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       username: '',
@@ -45,7 +33,7 @@ export default function LoginPage() {
     }
   })
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true)
     try {
       const result = await signIn('credentials', {

@@ -22,32 +22,11 @@ import {
 } from '@/components/ui/form'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { fetchFunc } from '@/lib/axios'
 import { useSession } from 'next-auth/react'
-interface ChangePWDRequest {
-  currentPassword: string
-  newPassword: string
-  confirmNewPassword: string
-}
-
-const passwordSchema = z
-  .object({
-    currentPassword: z.string().min(1, { message: '請輸入目前密碼' }),
-    newPassword: z
-      .string()
-      .min(8, { message: '新密碼長度至少需要 8 個字元' })
-      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, {
-        message: '新密碼需包含至少一個大寫字母、一個小寫字母、一個數字和一個特殊符號'
-      }),
-    confirmNewPassword: z.string()
-  })
-  .refine((data) => data.newPassword === data.confirmNewPassword, {
-    message: '新密碼與確認密碼不相符',
-    path: ['confirmNewPassword'] // 在確認密碼欄位顯示錯誤
-  })
+import { changePasswordSchema, ChangePasswordFormData } from '@/lib/validations'
 
 export function PasswordChangeDialog() {
   const [isOpen, setIsOpen] = useState(false)
@@ -55,8 +34,8 @@ export function PasswordChangeDialog() {
   const { data: session } = useSession()
   const token = session?.accessToken
 
-  const form = useForm<z.infer<typeof passwordSchema>>({
-    resolver: zodResolver(passwordSchema),
+  const form = useForm<ChangePasswordFormData>({
+    resolver: zodResolver(changePasswordSchema),
     defaultValues: {
       currentPassword: '',
       newPassword: '',
@@ -65,7 +44,7 @@ export function PasswordChangeDialog() {
   })
 
   const changePasswordMutation = useMutation({
-    mutationFn: (passwordData: ChangePWDRequest) =>
+    mutationFn: (passwordData: ChangePasswordFormData) =>
       fetchFunc({
         key: 'ChangePWD',
         request: passwordData,
@@ -83,7 +62,7 @@ export function PasswordChangeDialog() {
     }
   })
 
-  function onSubmit(values: z.infer<typeof passwordSchema>) {
+  function onSubmit(values: ChangePasswordFormData) {
     changePasswordMutation.mutate(values)
   }
 

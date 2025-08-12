@@ -11,15 +11,11 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { useMutation } from '@tanstack/react-query'
-import { signUpSchema } from '@/schemas/signup'
+import { fetchFunc } from '@/lib/axios'
+import { signUpSchema } from '@/lib/validations'
+import type { z } from 'zod'
 
-type SignUpForm = {
-  username: string
-  email: string
-  password: string
-  confirmPassword: string
-  phone?: string
-}
+type SignUpForm = z.infer<typeof signUpSchema>
 
 export default function SignUpPage() {
   const router = useRouter()
@@ -39,39 +35,24 @@ export default function SignUpPage() {
       phone: ''
     }
   })
-  // 註冊 API 呼叫
+
   const signUpMutation = useMutation({
-    mutationFn: async (data: SignUpForm) => {
-      const response = await fetch('http://localhost:3001/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+    mutationFn: (data: SignUpForm) =>
+      fetchFunc({
+        key: 'Register',
+        request: {
           username: data.username,
           email: data.email,
           password: data.password,
           confirmPassword: data.confirmPassword,
           phone: data.phone || undefined
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || '註冊失敗')
-      }
-
-      return response.json()
-    },
-    onMutate: () => {
-      setIsLoading(true)
-    },
+        }
+      }),
     onSuccess: () => {
-      toast('註冊成功', {
+      toast.success('註冊成功', {
         description: '帳號已建立完成，現在可以登入了！',
         duration: 3000
       })
-
       router.push('/login')
     },
     onError: (error: Error) => {
@@ -87,8 +68,7 @@ export default function SignUpPage() {
         errorMessage = error.message
       }
 
-      // 使用 Sonner toast 顯示錯誤訊息
-      toast('註冊失敗', {
+      toast.error('註冊失敗', {
         description: errorMessage,
         duration: 4000,
         action: {
@@ -180,7 +160,6 @@ export default function SignUpPage() {
                   />
                   {errors.phone && <p className="text-sm text-red-500">{errors.phone.message}</p>}
                 </div>
-                {/* 顯示 mutation 錯誤 */}
                 {signUpMutation.error && (
                   <div className="text-sm text-red-500 text-center bg-red-50 p-3 rounded-md">
                     {signUpMutation.error.message}
@@ -193,7 +172,6 @@ export default function SignUpPage() {
                   </Button>
                 </div>
               </div>
-              {/* 登入連結 */}
               <div className="mt-4 text-center text-sm">
                 已經有帳號了嗎？
                 <Link href="/login" className="underline underline-offset-4">

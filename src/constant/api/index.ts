@@ -1,6 +1,7 @@
 import { AuthApiList } from './auth/request-response.types'
 import { UserApiList } from './user/request-response.types'
-// import { TodoApiList } from './todos/request-response.types'
+import { TodoApiList } from './todos/request-response.types'
+import { AssetApiList } from './asset/request-response.types'
 
 export enum EnumApiMethod {
   POST = 'POST',
@@ -25,7 +26,7 @@ export interface ApiDefinition<URL extends string, Method extends EnumApiMethod,
   response: ApiResponseBase<Res>
 }
 
-export type RootApiList = AuthApiList & UserApiList
+export type RootApiList = AuthApiList & UserApiList & TodoApiList & AssetApiList
 
 export type BasicApiInfo<K extends keyof RootApiList> = Pick<RootApiList[K], 'url' | 'method'>
 
@@ -40,16 +41,19 @@ export const apiList: { [K in keyof RootApiList]: BasicApiInfo<K> } = {
 
   // 用戶管理
   GetProfile: { url: '/user/profile', method: EnumApiMethod.GET },
-  UpdateProfile: { url: '/user/profile', method: EnumApiMethod.PUT }
+  UpdateProfile: { url: '/user/profile', method: EnumApiMethod.PUT },
 
-  // // 待辦事項
-  // GetTodoStats: { url: '/todos/stats', method: EnumApiMethod.GET },
-  // GetTodoCategories: { url: '/todos/categories', method: EnumApiMethod.GET },
-  // BatchUpdateTodos: { url: '/todos/batch', method: EnumApiMethod.PATCH },
-  // GetTodos: { url: '/todos', method: EnumApiMethod.GET },
-  // GetTodoById: { url: '/todos/:id', method: EnumApiMethod.GET },
-  // CreateTodo: { url: '/todos', method: EnumApiMethod.POST },
-  // UpdateTodo: { url: '/todos/:id', method: EnumApiMethod.PUT },
-  // DeleteTodo: { url: '/todos/:id', method: EnumApiMethod.DELETE }
-}
-//  satisfies { [K in keyof RootApiList]: BasicApiInfo<K> }
+  // 待辦事項
+  GetTodoStats: { url: '/todos/stats', method: EnumApiMethod.GET },
+  GetTodoCategories: { url: '/todos/categories', method: EnumApiMethod.GET },
+  BatchUpdateTodos: { url: '/todos/batch', method: EnumApiMethod.PATCH },
+  GetTodos: { url: '/todos', method: EnumApiMethod.GET },
+  GetTodoById: { url: '/todos/:id', method: EnumApiMethod.GET },
+  CreateTodo: { url: '/todos', method: EnumApiMethod.POST },
+  UpdateTodo: { url: '/todos/:id', method: EnumApiMethod.PUT },
+  DeleteTodo: { url: '/todos/:id', method: EnumApiMethod.DELETE },
+
+  // 資產相關
+  GetAssetSummary: { url: '/assets/summary', method: EnumApiMethod.GET },
+  GetExchangeRates: { url: '/exchange/rates', method: EnumApiMethod.GET }
+} satisfies { [K in keyof RootApiList]: BasicApiInfo<K> }

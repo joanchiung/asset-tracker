@@ -1,8 +1,8 @@
 'use client'
 
 import { useMemo } from 'react'
-import { getCurrencyList } from 'country-currency-map'
 import { cryptoCurrenciesData } from '@/data/currencies'
+import * as currencyCodes from 'currency-codes'
 
 interface FiatCurrency {
   code: string
@@ -21,10 +21,10 @@ interface CryptoCurrency {
 
 export type Currency = FiatCurrency | CryptoCurrency
 
-interface FiatDataFromLib {
-  abbr: string
-  name: string
-  symbolFormat: string
+// 為 currency-codes 的資料定義一個類型，確保類型安全
+interface CurrencyCodeData {
+  code: string
+  currency: string
 }
 
 export const useCurrencies = () => {
@@ -43,23 +43,35 @@ export const useCurrencies = () => {
       'AUD'
     ]
 
-    const allFiatCurrenciesFromLib = getCurrencyList() as unknown as FiatDataFromLib[]
+    // 直接使用匯入的陣列資料
+    const allCurrenciesData: CurrencyCodeData[] = currencyCodes.data
 
-    const fiatCurrencies: FiatCurrency[] = allFiatCurrenciesFromLib
-
-      .filter((currency) => majorFiatCodes.includes(currency.abbr))
-
+    const fiatCurrencies: FiatCurrency[] = allCurrenciesData
+      .filter((currency) => majorFiatCodes.includes(currency.code))
       .map((currency) => {
-        const countryName = currency.name.split(' ')[0]
-
-        const symbol = currency.symbolFormat.replace('{sy}', '').replace('{#}', '').trim()
+        // currency-codes 套件不提供國家名稱或符號，這裡需要手動補足
+        // 建議您創建一個本地的映射檔案來儲存這些額外資訊
+        // 這裡提供一個簡單的示例，若您需要更精確的符號，請自行定義
+        const symbolsMap: Record<string, string> = {
+          TWD: 'NT$',
+          USD: '$',
+          EUR: '€',
+          JPY: '¥',
+          GBP: '£',
+          CNY: '¥',
+          KRW: '₩',
+          SGD: 'S$',
+          HKD: 'HK$',
+          CAD: 'C$',
+          AUD: 'A$'
+        }
 
         return {
-          code: currency.abbr,
-          country: countryName,
-          symbol: symbol,
+          code: currency.code,
+          country: currency.currency, // 在這個套件中，'currency' 欄位通常是國家名稱
+          symbol: symbolsMap[currency.code] || currency.code,
           type: 'fiat' as const,
-          displayName: `${currency.abbr} - ${countryName}`
+          displayName: `${currency.code} - ${currency.currency}`
         }
       })
       .sort((a, b) => majorFiatCodes.indexOf(a.code) - majorFiatCodes.indexOf(b.code))

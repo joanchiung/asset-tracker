@@ -1,4 +1,4 @@
-import { ApiDefinition, EnumApiMethod } from '..'
+import { ApiDefinition, EnumApiMethod } from '@/constant/api/index'
 
 export interface Asset {
   currency: string

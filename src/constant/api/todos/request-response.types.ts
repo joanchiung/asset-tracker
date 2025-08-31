@@ -1,4 +1,4 @@
-import { ApiDefinition, EnumApiMethod } from '..'
+import { ApiDefinition, EnumApiMethod } from '@/constant/api/index'
 
 export interface Todo {
   id: number
@@ -53,7 +53,7 @@ interface TodoResponse {
   todo: Todo
 }
 
-interface UpdateTodoRequest {
+export interface UpdateTodoRequest {
   title?: string
   description?: string
   completed?: boolean

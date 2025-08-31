@@ -1,13 +1,13 @@
 'use client'
 import React from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { fetchFunc } from '@/lib/axios'
-import { signOut, useSession } from 'next-auth/react'
-import { toast } from 'sonner'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
 import { LogOut, CheckCircle } from 'lucide-react'
 import { UserInfoCard } from './components/UserInfoCard'
 import { AccountStatusCard } from './components/AccountStatusCard'
+import { useLogout } from '@/hooks/useLogout'
 
 export interface UserProfile {
   email: string
@@ -44,23 +44,7 @@ export default function UserPortfolio() {
     enabled: !!token
   })
 
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      return await fetchFunc({
-        key: 'Logout',
-        headers: { Authorization: `Bearer ${token}` }
-      })
-    },
-    onSuccess: () => {
-      signOut({ redirect: true, callbackUrl: '/login' })
-      toast.success('登出成功')
-    },
-    onError: (error: any) => {
-      console.error('自定義登出 API 失敗:', error)
-      signOut({ redirect: true, callbackUrl: '/login' })
-      toast.error('登出失敗', { description: error.message || '請稍後再試' })
-    }
-  })
+  const { logout, isLoggingOut } = useLogout()
 
   if (status === 'loading' || isLoading) return <div>載入中...</div>
   if (!token) return <div>找不到認證 token，請重新登入</div>
@@ -85,11 +69,11 @@ export default function UserPortfolio() {
           variant="destructive"
           size="lg"
           className="w-full max-w-md flex items-center gap-2"
-          disabled={logoutMutation.isPending}
-          onClick={() => logoutMutation.mutate()}
+          disabled={isLoggingOut}
+          onClick={logout}
         >
           <LogOut className="h-4 w-4" />
-          {logoutMutation.isPending ? '登出中...' : '登出'}
+          {isLoggingOut ? '登出中...' : '登出'}
         </Button>
       </div>
     </div>

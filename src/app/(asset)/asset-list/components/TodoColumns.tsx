@@ -3,9 +3,23 @@
 import { ColumnDef } from '@tanstack/react-table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
-import { ArrowUpDown } from 'lucide-react'
+import { ArrowUpDown, MoreHorizontal } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Todo } from '@/constant/api/todos/request-response.types'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+
+// 這裡我們假設 onEdit 函數將接收一個 Todo 物件，並處理彈窗邏輯
+interface ColumnsProps {
+  onConfirm: (todoId: number) => void
+  onEdit: (todo: Todo) => void // 新增 onEdit 屬性
+  onDelete: (todoId: number) => void // 新增 onDelete 屬性
+}
 
 const priorityMap: Record<Todo['priority'], string> = {
   high: 'bg-red-500',
@@ -17,7 +31,7 @@ interface ColumnsProps {
   onConfirm: (id: number) => void
 }
 
-export const columns = ({ onConfirm }: ColumnsProps): ColumnDef<Todo>[] => [
+export const columns = ({ onConfirm, onEdit, onDelete }: ColumnsProps): ColumnDef<Todo>[] => [
   {
     id: 'select',
     header: ({ table }) => (
@@ -92,16 +106,46 @@ export const columns = ({ onConfirm }: ColumnsProps): ColumnDef<Todo>[] => [
   },
   {
     id: 'actions',
+    enableHiding: false,
     cell: ({ row }) => {
       const todo = row.original
-      if (!todo.completed) {
-        return (
-          <Button variant="ghost" size="sm" onClick={() => onConfirm(todo.id)}>
-            確認
-          </Button>
-        )
-      }
-      return null
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>操作</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => onEdit(todo)}>編輯</DropdownMenuItem>
+            {/* <DropdownMenuItem onClick={() => onDelete(todo.id)}>刪除</DropdownMenuItem>
+             */}
+            <DropdownMenuItem
+              onClick={() => {
+                // 通常會先有個確認彈窗
+                if (window.confirm('確定要刪除這筆待辦事項嗎？')) {
+                  onDelete(todo.id)
+                }
+              }}
+              className="text-red-600" // 可以給刪除按鈕一些紅色提示
+            >
+              刪除
+            </DropdownMenuItem>
+
+            {/* 也可以在這裡添加快速完成/未完成的選項 */}
+            {!todo.completed && (
+              <DropdownMenuItem onClick={() => onConfirm(todo.id)}>標記為完成</DropdownMenuItem>
+            )}
+            {todo.completed && (
+              <DropdownMenuItem onClick={() => onEdit({ ...todo, completed: false })}>
+                標記為未完成
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
     }
   }
 ]

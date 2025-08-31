@@ -1,3 +1,5 @@
+'use client'
+import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -13,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   TrendingUp,
   TrendingDown,
@@ -32,10 +33,14 @@ import {
   Car,
   Flame,
   Zap,
-  Moon
+  Moon,
+  Plus,
+  DollarSign
 } from 'lucide-react'
 import { useCurrencies } from '@/hooks/useCurrencies'
 import { cryptoCurrenciesData } from '@/data/currencies'
+
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 
 const getAllCurrencies = (majorFiatCodes: string[]) => [
   ...majorFiatCodes,
@@ -62,6 +67,7 @@ interface Props {
     dueDate?: string
   }) => void
   loading: boolean
+  availableCategories: string[]
 }
 
 const typeOptions = {
@@ -131,7 +137,9 @@ const typeOptions = {
   ]
 }
 
-export default function CreateTransactionForm({ onCreate, loading }: Props) {
+export default function CreateTransactionForm({ onCreate, loading, availableCategories }: Props) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+
   const { currencies } = useCurrencies()
   const majorFiatCodes = currencies.fiat.map((fiat) => fiat.code)
 
@@ -139,6 +147,8 @@ export default function CreateTransactionForm({ onCreate, loading }: Props) {
 
   const currentFormSchema = formSchema(allCurrencies)
   type FormData = z.infer<typeof currentFormSchema>
+
+  console.log(`availableCategories`, availableCategories)
 
   const {
     register,
@@ -174,6 +184,9 @@ export default function CreateTransactionForm({ onCreate, loading }: Props) {
     }
 
     onCreate(transactionData)
+
+    setIsDialogOpen(false)
+
     reset({
       ...data,
       title: '',
@@ -201,259 +214,300 @@ export default function CreateTransactionForm({ onCreate, loading }: Props) {
     }
   }
 
+  // 處理新增按鈕點擊
+  const handleOpenDialog = () => {
+    setIsDialogOpen(true)
+  }
+
+  // 處理對話框關閉
+  const handleCloseDialog = (open: boolean) => {
+    setIsDialogOpen(open)
+    if (!open) {
+      // 關閉時重置表單
+      reset({
+        priority: 'medium',
+        mainType: 'income',
+        currency: 'TWD',
+        subType: '',
+        transactionDate: new Date().toISOString().split('T')[0],
+        title: '',
+        amount: 0
+      })
+    }
+  }
+
   return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-xl">
-          {/* <DollarSign className="h-5 w-5" /> */}
-          新增交易記錄
-        </CardTitle>
-      </CardHeader>
+    <div>
+      {/* 觸發按鈕 */}
+      <Button variant={'outline'} onClick={handleOpenDialog}>
+        <Plus className="h-4 w-4 mr-2" />
+        <span>新增預算項目</span>
+      </Button>
 
-      <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <Tag className="h-4 w-4" />
-              交易類型 <span className="text-red-500">*</span>
-            </label>
+      {/* 彈窗對話框 */}
+      <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <DollarSign className="h-5 w-5" />
+              新增預算項目
+            </DialogTitle>
+          </DialogHeader>
 
-            <Controller
-              name="mainType"
-              control={control}
-              render={({ field }) => (
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => field.onChange('income')}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      field.value === 'income'
-                        ? 'border-green-500 bg-green-50 text-green-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <TrendingUp className="h-6 w-6 mx-auto mb-2" />
-                    <div className="font-medium">收入</div>
-                    <div className="text-xs text-gray-500">錢進來了</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => field.onChange('expense')}
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      field.value === 'expense'
-                        ? 'border-red-500 bg-red-50 text-red-700'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <TrendingDown className="h-6 w-6 mx-auto mb-2" />
-                    <div className="font-medium">支出</div>
-                    <div className="text-xs text-gray-500">錢花出去了</div>
-                  </button>
-                </div>
-              )}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">
-              標題 <span className="text-red-500">*</span>
-            </label>
-            <Input
-              {...register('title')}
-              placeholder="簡短描述這筆交易，例如：ETH 質押利息"
-              className="text-base"
-            />
-            {errors.title && <p className="text-sm text-red-600">{errors.title.message}</p>}
-          </div>
-
-          <div className="space-y-4">
-            <label className="text-sm font-medium text-gray-700">
-              金額與幣種 <span className="text-red-500">*</span>
-            </label>
-
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <Input
-                  {...register('amount', { valueAsNumber: true })}
-                  type="number"
-                  step="any"
-                  placeholder="0.00"
-                  className="text-lg font-mono"
-                />
-                {errors.amount && (
-                  <p className="text-sm text-red-600 mt-1">{errors.amount.message}</p>
-                )}
-              </div>
-
-              <Controller
-                name="currency"
-                control={control}
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
-                        法幣
-                      </div>
-                      {majorFiatCodes.map((currency) => (
-                        <SelectItem key={currency} value={currency}>
-                          {currency}
-                        </SelectItem>
-                      ))}
-
-                      <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
-                        加密貨幣
-                      </div>
-                      {cryptoCurrenciesData.map((crypto) => (
-                        <SelectItem key={crypto.symbol} value={crypto.symbol}>
-                          {crypto.symbol}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-gray-700">
-              {watchedMainType === 'income' ? '收入' : '支出'}類別{' '}
-              <span className="text-red-500">*</span>
-            </label>
-
-            <Controller
-              name="subType"
-              control={control}
-              render={({ field }) => (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {typeOptions[watchedMainType].map((option) => {
-                    const IconComponent = option.icon
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => field.onChange(option.value)}
-                        className={`p-3 text-left rounded-lg border transition-all ${
-                          field.value === option.value
-                            ? 'border-blue-500 bg-blue-50 text-blue-700'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <IconComponent className="h-4 w-4" />
-                          <span className="font-medium text-sm">{option.label}</span>
-                        </div>
-                        <div className="text-xs text-gray-500">{option.desc}</div>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            />
-            {errors.subType && <p className="text-sm text-red-600">{errors.subType.message}</p>}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="space-y-3">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                優先級
+                <Tag className="h-4 w-4" />
+                交易類型 <span className="text-red-500">*</span>
               </label>
 
               <Controller
-                name="priority"
+                name="mainType"
                 control={control}
                 render={({ field }) => (
-                  <div className="flex flex-row gap-2">
-                    {Object.entries(priorityConfig).map(([value, config]) => {
-                      const IconComponent = config.icon
-                      return (
-                        <button
-                          key={value}
-                          type="button"
-                          onClick={() => field.onChange(value)}
-                          className={`w-full p-2 text-left rounded-lg border transition-all ${
-                            field.value === value
-                              ? config.color
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <IconComponent className="h-4 w-4" />
-                            <span className="text-sm font-medium">{config.label}</span>
-                          </div>
-                        </button>
-                      )
-                    })}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => field.onChange('income')}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        field.value === 'income'
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <TrendingUp className="h-6 w-6 mx-auto mb-2" />
+                      <div className="font-medium">收入</div>
+                      <div className="text-xs text-gray-500">錢進來了</div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => field.onChange('expense')}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        field.value === 'expense'
+                          ? 'border-red-500 bg-red-50 text-red-700'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <TrendingDown className="h-6 w-6 mx-auto mb-2" />
+                      <div className="font-medium">支出</div>
+                      <div className="text-xs text-gray-500">錢花出去了</div>
+                    </button>
                   </div>
                 )}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                交易日期 <span className="text-red-500">*</span>
+              <label className="text-sm font-medium text-gray-700">
+                標題 <span className="text-red-500">*</span>
               </label>
-              <Input {...register('transactionDate')} type="date" />
-              {errors.transactionDate && (
-                <p className="text-sm text-red-600">{errors.transactionDate.message}</p>
-              )}
+              <Input
+                {...register('title')}
+                placeholder="簡短描述這筆交易，例如：ETH 質押利息"
+                className="text-base"
+              />
+              {errors.title && <p className="text-sm text-red-600">{errors.title.message}</p>}
             </div>
-          </div>
 
-          {watchedAmount > 0 && (
-            <div className="bg-gray-100  rounded-lg p-6">
-              <div className="flex items-center gap-2 text-sm">
-                <Badge
-                  variant={watchedMainType === 'income' ? 'default' : 'destructive'}
-                  className="text-xs"
-                >
-                  {watchedMainType === 'income' ? '收入' : '支出'}
-                </Badge>
+            <div className="space-y-4">
+              <label className="text-sm font-medium text-gray-700">
+                金額與幣種 <span className="text-red-500">*</span>
+              </label>
 
-                <span className="text-gray-600">
-                  {watch('transactionDate') &&
-                    new Date(watch('transactionDate')).toLocaleDateString('zh-TW')}
-                </span>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <Input
+                    {...register('amount', { valueAsNumber: true })}
+                    type="number"
+                    step="any"
+                    placeholder="0.00"
+                    className="text-lg font-mono"
+                  />
+                  {errors.amount && (
+                    <p className="text-sm text-red-600 mt-1">{errors.amount.message}</p>
+                  )}
+                </div>
 
-                <span className="text-gray-800 font-medium">{watch('title') || ' '}</span>
+                <Controller
+                  name="currency"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
+                          法幣
+                        </div>
+                        {majorFiatCodes.map((currency) => (
+                          <SelectItem key={currency} value={currency}>
+                            {currency}
+                          </SelectItem>
+                        ))}
 
-                <span className="text-lg font-mono font-bold  ">
-                  {watchedAmount} {watchedCurrency}
-                </span>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
+                          加密貨幣
+                        </div>
+                        {cryptoCurrenciesData.map((crypto) => (
+                          <SelectItem key={crypto.symbol} value={crypto.symbol}>
+                            {crypto.symbol}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
             </div>
-          )}
 
-          <div className="pt-4 border-t">
-            <Button type="submit" disabled={loading} className="w-full py-3 text-base font-medium">
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  新增中...
-                </>
-              ) : (
-                <>✨ 新增交易記錄</>
-              )}
-            </Button>
-          </div>
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-gray-700">
+                {watchedMainType === 'income' ? '收入' : '支出'}類別{' '}
+                <span className="text-red-500">*</span>
+              </label>
 
-          <div className="bg-blue-50 rounded-lg p-4 text-sm">
-            <h4 className="font-medium text-blue-800 mb-2">💡 小提示</h4>
-            <ul className="text-blue-700 space-y-1 text-xs">
-              <li>• 先選擇是收入還是支出，系統會顯示對應的類別選項</li>
-              <li>• 金額支援小數點，加密貨幣建議輸入完整數量</li>
-              <li>• 優先級會影響待辦事項的排序和顯示</li>
-              <li>• 完成待辦事項時，金額會自動加入資產組合</li>
-            </ul>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+              <Controller
+                name="subType"
+                control={control}
+                render={({ field }) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {typeOptions[watchedMainType].map((option) => {
+                      const IconComponent = option.icon
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => field.onChange(option.value)}
+                          className={`p-3 text-left rounded-lg border transition-all ${
+                            field.value === option.value
+                              ? 'border-blue-500 bg-blue-50 text-blue-700'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <IconComponent className="h-4 w-4" />
+                            <span className="font-medium text-sm">{option.label}</span>
+                          </div>
+                          <div className="text-xs text-gray-500">{option.desc}</div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              />
+              {errors.subType && <p className="text-sm text-red-600">{errors.subType.message}</p>}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  優先級
+                </label>
+
+                <Controller
+                  name="priority"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="flex flex-row gap-2">
+                      {Object.entries(priorityConfig).map(([value, config]) => {
+                        const IconComponent = config.icon
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => field.onChange(value)}
+                            className={`w-full p-2 text-left rounded-lg border transition-all ${
+                              field.value === value
+                                ? config.color
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <IconComponent className="h-4 w-4" />
+                              <span className="text-sm font-medium">{config.label}</span>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  交易日期 <span className="text-red-500">*</span>
+                </label>
+                <Input {...register('transactionDate')} type="date" />
+                {errors.transactionDate && (
+                  <p className="text-sm text-red-600">{errors.transactionDate.message}</p>
+                )}
+              </div>
+            </div>
+
+            {watchedAmount > 0 && (
+              <div className="bg-gray-100 rounded-lg p-6">
+                <div className="flex items-center gap-2 text-sm">
+                  <Badge
+                    variant={watchedMainType === 'income' ? 'default' : 'destructive'}
+                    className="text-xs"
+                  >
+                    {watchedMainType === 'income' ? '收入' : '支出'}
+                  </Badge>
+
+                  <span className="text-gray-600">
+                    {watch('transactionDate') &&
+                      new Date(watch('transactionDate')).toLocaleDateString('zh-TW')}
+                  </span>
+
+                  <span className="text-gray-800 font-medium">{watch('title') || ' '}</span>
+
+                  <span className="text-lg font-mono font-bold">
+                    {watchedAmount} {watchedCurrency}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="pt-4 border-t flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                className="flex-1"
+              >
+                取消
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="flex-1 py-3 text-base font-medium"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    新增中...
+                  </>
+                ) : (
+                  <>✨ 新增交易記錄</>
+                )}
+              </Button>
+            </div>
+
+            <div className="bg-blue-50 rounded-lg p-4 text-sm">
+              <h4 className="font-medium text-blue-800 mb-2">💡 小提示</h4>
+              <ul className="text-blue-700 space-y-1 text-xs">
+                <li>• 先選擇是收入還是支出，系統會顯示對應的類別選項</li>
+                <li>• 金額支援小數點，加密貨幣建議輸入完整數量</li>
+              </ul>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
   )
 }

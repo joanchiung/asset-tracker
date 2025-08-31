@@ -1,5 +1,5 @@
 import { Header } from '@/components/custom/Header'
-export default function AssetLayout({ children }: { children: React.ReactNode }) {
+export default function UserLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-gray-50">
       <header>

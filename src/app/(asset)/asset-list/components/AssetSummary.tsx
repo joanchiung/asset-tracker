@@ -50,14 +50,14 @@ export default function AssetSummary({
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {assets.map((asset) => {
-          const rate = exchangeRates?.[asset.currency.toUpperCase()]
+          const rate = exchangeRates?.[asset.currency.toUpperCase()] ?? null
 
           return (
             <div key={asset.currency} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
               <p className="font-bold text-lg text-gray-800">{asset.currency.toUpperCase()}</p>
               <p className="text-gray-600">{(asset.amount || 0).toFixed(4)}</p>
 
-              {rate != null ? (
+              {rate !== null ? (
                 <p className="text-xs text-gray-500">≈ {formatter.format(asset.amount * rate)}</p>
               ) : (
                 <p className="text-xs text-gray-500">-- (無匯率資料)</p>

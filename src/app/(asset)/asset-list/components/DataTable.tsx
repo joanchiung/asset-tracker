@@ -5,15 +5,21 @@ import {
   SortingState,
   VisibilityState,
   PaginationState,
+  RowSelectionState,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
   OnChangeFn,
   Table
 } from '@tanstack/react-table'
-
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import {
   Table as ShadcnTable,
   TableBody,
@@ -22,25 +28,42 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+
+interface FilterOption {
+  label: string
+  value: string
+  count?: number
+}
+
+export interface FilterConfig {
+  key: string
+  label: string
+  type: 'select' | 'multiSelect'
+  options: FilterOption[] | (() => FilterOption[])
+  placeholder?: string
+  defaultValue?: string
+  width?: string
+}
 
 interface PaginationControlsProps<TData> {
   table: Table<TData>
+  data: TData[]
 }
 
-function PaginationControls<TData>({ table }: PaginationControlsProps<TData>) {
+function PaginationControls<TData>({ table, data }: PaginationControlsProps<TData>) {
   return (
     <div className="flex items-center justify-between space-x-2 py-4">
-      <div className="flex-1 text-sm text-muted-foreground">
-        共 {table.getFilteredRowModel().rows.length} 筆資料.
-      </div>
+      <div className="flex-1 text-sm text-muted-foreground">共 {data.length} 筆資料.</div>
       <div className="flex items-center space-x-2">
         <span className="text-sm text-muted-foreground">每頁顯示</span>
         <select
@@ -131,6 +154,112 @@ function ColumnVisibilityToggle<TData>({ table }: ColumnVisibilityToggleProps<TD
   )
 }
 
+interface FilterSelectorProps {
+  config: FilterConfig
+  value: string
+  onChange: (value: string) => void
+}
+
+function FilterSelector({ config, value, onChange }: FilterSelectorProps) {
+  const options = typeof config.options === 'function' ? config.options() : config.options
+
+  const selectedValues = React.useMemo(() => {
+    const result = value ? value.split(',') : []
+    return result
+  }, [value])
+
+  // 處理多選邏輯
+  const handleMultiSelectChange = React.useCallback(
+    (optionValue: string, isChecked: boolean) => {
+      const currentSelectedValues = value ? value.split(',') : []
+
+      let newSelectedValues: string[]
+      if (isChecked) {
+        newSelectedValues = Array.from(new Set([...currentSelectedValues, optionValue]))
+      } else {
+        newSelectedValues = currentSelectedValues.filter((val) => val !== optionValue)
+      }
+
+      onChange(newSelectedValues.join(','))
+    },
+    [value, onChange]
+  )
+
+  if (config.type === 'select') {
+    return (
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-muted-foreground">{config.label}</label>
+        <Select value={value || ''} onValueChange={onChange}>
+          <SelectTrigger className={`${config.width || 'w-48'} h-9`}>
+            <SelectValue placeholder={config.placeholder || `選擇${config.label}`} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">全部{config.label}</SelectItem>
+            {options.map((option) => (
+              <SelectItem key={String(option.value)} value={String(option.value)}>
+                {option.label}
+                {option.count && ` (${option.count})`}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    )
+  } else if (config.type === 'multiSelect') {
+    return (
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-muted-foreground">{config.label}</label>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className={`${config.width || 'w-48'} h-9 justify-start`}>
+              {selectedValues.length > 0
+                ? options
+                    .filter((option) => selectedValues.includes(option.value))
+                    .map((option) => option.label)
+                    .join(', ')
+                : config.placeholder || `選擇${config.label}`}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-48">
+            <DropdownMenuLabel>{config.label}</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+
+            {options.map((option) => {
+              const isChecked = selectedValues.includes(option.value)
+              return (
+                <DropdownMenuCheckboxItem
+                  key={option.value}
+                  checked={isChecked}
+                  onCheckedChange={(checked) => handleMultiSelectChange(option.value, checked)}
+                >
+                  {option.label}
+                  {option.count && ` (${option.count})`}
+                </DropdownMenuCheckboxItem>
+              )
+            })}
+
+            {selectedValues.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-destructive"
+                  onClick={() => onChange('')}
+                >
+                  清除所有
+                </Button>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    )
+  }
+
+  return null
+}
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
@@ -139,14 +268,21 @@ interface DataTableProps<TData, TValue> {
   onPaginationChange?: OnChangeFn<PaginationState>
   sorting?: SortingState
   onSortingChange?: OnChangeFn<SortingState>
-  // 讓 toolbar 成為一個 render prop，可以傳入任何 React.ReactNode 或一個接受 table 實例的函式
+  globalFilter?: string
+  onGlobalFilterChange?: OnChangeFn<string>
+  searchValue?: string
+  onSearchChange?: (value: string) => void
+  searchPlaceholder?: string
+  searchableFields?: string[]
+  filters?: FilterConfig[]
+  filtersValue?: Record<string, string>
+  onFiltersChange?: (filters: Record<string, string>) => void
   toolbar?: React.ReactNode | ((table: ReturnType<typeof useReactTable<TData>>) => React.ReactNode)
-  // 新增篩選功能相關 props
-  globalFilter?: string // 全局篩選值
-  onGlobalFilterChange?: OnChangeFn<string> // 全局篩選值的改變事件
-  filterableColumnId?: string // 指定哪個欄位可以進行篩選 (例如： 'name' 或 'email')
-  showPagination?: boolean // 控制是否顯示分頁
-  showColumnVisibilityToggle?: boolean // 控制是否顯示欄位可見性開關
+  showPagination?: boolean
+  showColumnVisibilityToggle?: boolean
+  rowSelection?: RowSelectionState
+  onRowSelectionChange?: OnChangeFn<RowSelectionState>
+  getRowId?: (row: TData) => string
 }
 
 export function DataTable<TData, TValue>({
@@ -160,13 +296,46 @@ export function DataTable<TData, TValue>({
   toolbar,
   globalFilter,
   onGlobalFilterChange,
-  filterableColumnId,
+  searchValue,
+  onSearchChange,
+  searchPlaceholder = '搜尋...',
+  filters = [],
+  filtersValue = {},
+  onFiltersChange,
   showPagination = true,
-  showColumnVisibilityToggle = true
+  showColumnVisibilityToggle = true,
+  rowSelection,
+  onRowSelectionChange,
+  getRowId
 }: DataTableProps<TData, TValue>) {
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [rowSelection, setRowSelection] = React.useState({})
+  const [internalRowSelection, setInternalRowSelection] = React.useState<RowSelectionState>({})
+
+  const handleSearchChange = React.useCallback(
+    (value: string) => {
+      if (onSearchChange) {
+        onSearchChange(value)
+      } else if (onGlobalFilterChange) {
+        onGlobalFilterChange(value)
+      }
+    },
+    [onSearchChange, onGlobalFilterChange]
+  )
+
+  const handleFilterChange = React.useCallback(
+    (key: string, value: string) => {
+      const newFilters = { ...filtersValue, [key]: value }
+
+      if (!value || value === '') {
+        delete newFilters[key]
+      }
+      if (onFiltersChange) {
+        onFiltersChange(newFilters)
+      }
+    },
+    [filtersValue, onFiltersChange]
+  )
 
   const table = useReactTable({
     data,
@@ -174,55 +343,76 @@ export function DataTable<TData, TValue>({
     pageCount: pageCount ?? -1,
     manualPagination: pageCount !== undefined,
     manualSorting: sorting !== undefined,
+    ...(getRowId && { getRowId }),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: setRowSelection,
+    onRowSelectionChange: onRowSelectionChange || setInternalRowSelection,
     onPaginationChange,
     onSortingChange,
     state: {
       sorting: sorting ?? [],
       columnFilters,
       columnVisibility,
-      rowSelection,
+      rowSelection: rowSelection ?? internalRowSelection,
       pagination: pagination ?? { pageIndex: 0, pageSize: 10 },
       globalFilter: globalFilter
-    },
-    onGlobalFilterChange: onGlobalFilterChange
+    }
   })
 
   const renderToolbar = typeof toolbar === 'function' ? toolbar(table) : toolbar
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        {filterableColumnId && (
-          <Input
-            placeholder={`篩選 ${filterableColumnId}...`}
-            value={(table.getColumn(filterableColumnId)?.getFilterValue() as string) ?? ''}
-            onChange={(event) =>
-              table.getColumn(filterableColumnId)?.setFilterValue(event.target.value)
-            }
-            className="max-w-sm"
-          />
-        )}
-        {onGlobalFilterChange && (
-          <Input
-            placeholder="全局篩選..."
-            value={globalFilter ?? ''}
-            onChange={(event) => onGlobalFilterChange(event.target.value)}
-            className="max-w-sm ml-2"
-          />
-        )}
+      {/* 搜尋和篩選區域 */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          {/* 全局搜尋 */}
+          {(onSearchChange || onGlobalFilterChange) && (
+            <Input
+              placeholder={searchPlaceholder}
+              value={searchValue ?? globalFilter ?? ''}
+              onChange={(event) => handleSearchChange(event.target.value)}
+              className="max-w-sm"
+            />
+          )}
 
-        <div className="flex-grow flex justify-end gap-2">
-          {renderToolbar}
-          {showColumnVisibilityToggle && <ColumnVisibilityToggle table={table} />}
+          {/* 右側工具列 */}
+          <div className="flex-grow flex justify-end gap-2">
+            {renderToolbar}
+            {showColumnVisibilityToggle && <ColumnVisibilityToggle table={table} />}
+          </div>
         </div>
+
+        {/* 篩選器區域 */}
+        {filters.length > 0 && (
+          <div className="flex flex-wrap gap-4 p-4 bg-muted/10 rounded-lg">
+            {filters.map((filter) => (
+              <FilterSelector
+                key={filter.key}
+                config={filter}
+                value={filtersValue[filter.key] ?? ''}
+                onChange={(value) => handleFilterChange(filter.key, value)}
+              />
+            ))}
+
+            {/* 清除篩選按鈕 */}
+            {Object.keys(filtersValue).length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onFiltersChange?.({})}
+                className="h-9"
+              >
+                清除篩選
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* 表格 */}
       <div className="rounded-md border">
         <ShadcnTable>
           <TableHeader>
@@ -262,7 +452,8 @@ export function DataTable<TData, TValue>({
         </ShadcnTable>
       </div>
 
-      {showPagination && <PaginationControls table={table} />}
+      {/* 分頁控制 */}
+      {showPagination && <PaginationControls data={data} table={table} />}
     </div>
   )
 }

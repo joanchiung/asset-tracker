@@ -137,7 +137,7 @@ const typeOptions = {
   ]
 }
 
-export default function CreateTransactionForm({ onCreate, loading, availableCategories }: Props) {
+export default function CreateTransactionForm({ onCreate, loading }: Props) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const { currencies } = useCurrencies()
@@ -147,8 +147,6 @@ export default function CreateTransactionForm({ onCreate, loading, availableCate
 
   const currentFormSchema = formSchema(allCurrencies)
   type FormData = z.infer<typeof currentFormSchema>
-
-  console.log(`availableCategories`, availableCategories)
 
   const {
     register,
@@ -214,16 +212,13 @@ export default function CreateTransactionForm({ onCreate, loading, availableCate
     }
   }
 
-  // 處理新增按鈕點擊
   const handleOpenDialog = () => {
     setIsDialogOpen(true)
   }
 
-  // 處理對話框關閉
   const handleCloseDialog = (open: boolean) => {
     setIsDialogOpen(open)
     if (!open) {
-      // 關閉時重置表單
       reset({
         priority: 'medium',
         mainType: 'income',

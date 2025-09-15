@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
@@ -14,6 +14,9 @@ import { OnChangeFn, SortingState, PaginationState } from '@tanstack/react-table
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Todo } from '@/constant/api/todos/request-response.types'
 import { EditTodoDialog } from './components/EditTodoDialog'
+import { Button } from '@/components/ui/button'
+
+import { FilterConfig } from './components/DataTable'
 
 interface UpdateTodoPayload {
   id: number
@@ -28,6 +31,8 @@ export default function AssetListPage() {
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
+  const [rowSelection, setRowSelection] = useState({})
+  const [filtersValue, setFiltersValue] = useState<Record<string, string>>({})
 
   const [queryParams, setQueryParams] = useState<GetTodosParams>({
     page: 1,
@@ -35,6 +40,11 @@ export default function AssetListPage() {
     sortBy: 'created_at',
     sortOrder: 'desc'
   })
+  const [searchValue, setSearchValue] = useState('')
+
+  const handleSearchChange = (value: string) => {
+    setSearchValue(value)
+  }
 
   const VALID_SORT_FIELDS = ['created_at', 'updated_at', 'due_date', 'priority', 'title'] as const
   type ValidSortField = (typeof VALID_SORT_FIELDS)[number]
@@ -149,7 +159,10 @@ export default function AssetListPage() {
     },
     onSuccess: () => {
       toast.success('待處理紀錄已建立')
-      queryClient.invalidateQueries({ queryKey: ['GetTodos'] })
+      queryClient.invalidateQueries({
+        queryKey: ['GetTodos', queryParams]
+      })
+      queryClient.invalidateQueries({ queryKey: ['GetTodoCategories'] })
     },
     onError: (error) => {
       toast.error('建立失敗', { description: error.message || '請稍後再試' })
@@ -170,7 +183,7 @@ export default function AssetListPage() {
   })
 
   // 計算總資產
-  const totalValue = useMemo(() => {
+  const totalValue = (() => {
     if (!assetsDatas?.length || !exchangeRates || Object.keys(exchangeRates).length === 0) {
       return 0
     }
@@ -180,16 +193,15 @@ export default function AssetListPage() {
       const amount = parseFloat(assetsData.balance) || 0
       return total + amount * rate
     }, 0)
-  }, [assetsDatas, exchangeRates])
+  })()
 
-  // // 處理編輯按鈕點擊
+  // 處理編輯按鈕點擊
   const handleEditTodo = (todo: Todo) => {
     setEditingTodo(todo)
     setIsEditDialogOpen(true)
   }
 
   // 處理排序變更 (簡化)
-
   const handleSortingChange: OnChangeFn<SortingState> = useCallback(
     (updater) => {
       const currentSorting = [
@@ -201,7 +213,6 @@ export default function AssetListPage() {
 
       const newSortingState = typeof updater === 'function' ? updater(currentSorting) : updater
 
-      // 提取排序邏輯到單獨函數
       const updateSortParams = (sortBy: ValidSortField, sortOrder: 'asc' | 'desc') => {
         setQueryParams((prev) => ({ ...prev, sortBy, sortOrder, page: 1 }))
       }
@@ -212,11 +223,10 @@ export default function AssetListPage() {
           updateSortParams(id as ValidSortField, desc ? 'desc' : 'asc')
         }
       } else {
-        // 重置為默認排序
         updateSortParams('created_at', 'desc')
       }
     },
-    [queryParams.sortBy, queryParams.sortOrder] // 只依賴實際使用的值
+    [VALID_SORT_FIELDS, queryParams.sortBy, queryParams.sortOrder]
   )
 
   // 處理分頁變更 (簡化)
@@ -239,7 +249,117 @@ export default function AssetListPage() {
     [queryParams]
   )
 
-  const todoColumns = useMemo(() => getTodoColumns(handleEditTodo, token), [handleEditTodo, token])
+  const todoColumns = getTodoColumns(handleEditTodo, token)
+
+  const deleteTodoMutation = useMutation({
+    mutationFn: async (todoId: number) => {
+      return await fetchFunc({
+        key: 'DeleteTodo',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        routeParams: new URLSearchParams({ id: todoId.toString() })
+      })
+    },
+    onSuccess: () => {
+      toast.success('待辦事項已刪除')
+      queryClient.invalidateQueries({
+        queryKey: ['GetTodos', queryParams]
+      })
+      queryClient.invalidateQueries({ queryKey: ['GetAssetSummary'] })
+      queryClient.invalidateQueries({ queryKey: ['GetTodoCategories'] })
+    },
+    onError: (error) => {
+      toast.error('刪除失敗', { description: error.message || '請稍後再試' })
+    }
+  })
+
+  // 批量刪除處理函數
+  const handleBatchDelete = async (selectedIds: number[]) => {
+    if (selectedIds.length === 0) return
+
+    try {
+      await Promise.all(selectedIds.map((id) => deleteTodoMutation.mutateAsync(id)))
+
+      setRowSelection({})
+
+      toast.success(`成功刪除 ${selectedIds.length} 個待辦事項`)
+    } catch {
+      toast.error('批量刪除失敗', {
+        description: '部分項目可能刪除失敗，請重試'
+      })
+    }
+  }
+
+  const filters: FilterConfig[] = [
+    {
+      key: 'category',
+      label: '分類',
+      type: 'multiSelect',
+      options: (todoCategories || [])
+        .filter((cat) => !!cat.name?.trim())
+        .map((cat) => ({
+          label: cat.name.trim(),
+          value: cat.name.trim(),
+          count: cat.count
+        })),
+
+      placeholder: '選擇分類',
+      width: 'w-48'
+    },
+    {
+      key: 'priority',
+      label: '優先度',
+      type: 'select',
+      options: [
+        { label: '高優先度', value: 'high' },
+        { label: '中優先度', value: 'medium' },
+        { label: '低優先度', value: 'low' }
+      ],
+      placeholder: '選擇優先度',
+      width: 'w-36'
+    },
+    {
+      key: 'completed',
+      label: '完成狀態',
+      type: 'select',
+      options: [
+        { label: '已完成', value: 'true' },
+        { label: '待完成', value: 'false' }
+      ],
+      placeholder: '選擇狀態',
+      width: 'w-32'
+    }
+  ]
+
+  const filteredTransactions = (() => {
+    let result = [...transactions]
+
+    if (searchValue.trim()) {
+      const searchFields: (keyof Todo)[] = ['title', 'description', 'priority', 'category']
+
+      result = result.filter((todo) =>
+        searchFields.some((field) =>
+          String(todo[field] || '')
+            .toLowerCase()
+            .includes(searchValue.toLowerCase())
+        )
+      )
+    }
+
+    Object.entries(filtersValue).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        if (key === 'completed') {
+          result = result.filter((todo) => String(todo.completed) === String(value))
+        } else {
+          const todoKey = key as keyof Todo
+          result = result.filter((todo) => String(todo[todoKey]) === String(value))
+        }
+      }
+    })
+
+    return result
+  })()
 
   return (
     <div className="space-y-8 p-4 md:p-6">
@@ -268,7 +388,9 @@ export default function AssetListPage() {
             <div className="overflow-x-auto ">
               <DataTable
                 columns={todoColumns}
-                data={transactions}
+                data={filteredTransactions}
+                searchValue={searchValue}
+                onSearchChange={handleSearchChange}
                 pageCount={pagination?.totalPages || 1}
                 pagination={{
                   pageIndex: (queryParams.page || 1) - 1,
@@ -282,6 +404,28 @@ export default function AssetListPage() {
                   }
                 ]}
                 onSortingChange={handleSortingChange}
+                toolbar={(table) => (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      disabled={Object.keys(table.getState().rowSelection).length === 0}
+                      onClick={() => {
+                        const selectedRows = table.getFilteredSelectedRowModel().rows
+                        const selectedIds = selectedRows.map((row) => row.original.id)
+                        handleBatchDelete(selectedIds)
+                      }}
+                    >
+                      刪除選中項目 ({Object.keys(table.getState().rowSelection).length})
+                    </Button>
+                  </div>
+                )}
+                rowSelection={rowSelection}
+                onRowSelectionChange={setRowSelection}
+                filters={filters}
+                filtersValue={filtersValue}
+                onFiltersChange={setFiltersValue}
+                searchPlaceholder="搜尋標題、描述、優先度或分類..."
               />
             </div>
           </CardContent>

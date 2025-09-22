@@ -15,7 +15,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Todo } from '@/constant/api/todos/request-response.types'
 import { EditTodoDialog } from './components/EditTodoDialog'
 import { Button } from '@/components/ui/button'
-
 import { FilterConfig } from './components/DataTable'
 
 interface UpdateTodoPayload {
@@ -389,21 +388,29 @@ export default function AssetListPage() {
               <DataTable
                 columns={todoColumns}
                 data={filteredTransactions}
-                searchValue={searchValue}
-                onSearchChange={handleSearchChange}
-                pageCount={pagination?.totalPages || 1}
-                pagination={{
-                  pageIndex: (queryParams.page || 1) - 1,
-                  pageSize: queryParams.limit || 10
+                search={{
+                  value: searchValue,
+                  onChange: handleSearchChange,
+                  placeholder: '搜尋標題、描述、優先度或分類...'
                 }}
-                onPaginationChange={handlePaginationChange}
-                sorting={[
-                  {
-                    id: queryParams.sortBy || 'id',
-                    desc: queryParams.sortOrder === 'desc'
-                  }
-                ]}
-                onSortingChange={handleSortingChange}
+                pagination={{
+                  state: {
+                    pageIndex: (queryParams.page || 1) - 1,
+                    pageSize: queryParams.limit || 10
+                  },
+                  onChange: handlePaginationChange,
+                  pageCount: pagination?.totalPages || 1,
+                  show: true
+                }}
+                sorting={{
+                  state: [
+                    {
+                      id: queryParams.sortBy || 'id',
+                      desc: queryParams.sortOrder === 'desc'
+                    }
+                  ],
+                  onChange: handleSortingChange
+                }}
                 toolbar={(table) => (
                   <div className="flex gap-2">
                     <Button
@@ -420,12 +427,15 @@ export default function AssetListPage() {
                     </Button>
                   </div>
                 )}
-                rowSelection={rowSelection}
-                onRowSelectionChange={setRowSelection}
-                filters={filters}
-                filtersValue={filtersValue}
-                onFiltersChange={setFiltersValue}
-                searchPlaceholder="搜尋標題、描述、優先度或分類..."
+                rowSelection={{
+                  state: rowSelection,
+                  onChange: setRowSelection
+                }}
+                filters={{
+                  config: filters,
+                  value: filtersValue,
+                  onChange: setFiltersValue
+                }}
               />
             </div>
           </CardContent>

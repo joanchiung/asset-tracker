@@ -1,4 +1,5 @@
-import * as React from 'react'
+'use client'
+import React, { useState } from 'react'
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -45,37 +46,30 @@ interface FilterOption {
   count?: number
 }
 
-export interface FilterConfig {
-  key: string
-  label: string
-  type: 'select' | 'multiSelect'
-  options: FilterOption[] | (() => FilterOption[])
-  placeholder?: string
-  defaultValue?: string
-  width?: string
-}
-
 interface PaginationControlsProps<TData> {
   table: Table<TData>
-  data: TData[]
+  totalCount: number
 }
 
-function PaginationControls<TData>({ table, data }: PaginationControlsProps<TData>) {
+function PaginationControls<TData>({ table, totalCount }: PaginationControlsProps<TData>) {
+  const { pageSize } = table.getState().pagination
+  const pageCount = table.getPageCount()
+
   return (
     <div className="flex items-center justify-between space-x-2 py-4">
-      <div className="flex-1 text-sm text-muted-foreground">共 {data.length} 筆資料.</div>
+      <div className="flex-1 text-sm text-muted-foreground">共 {totalCount} 筆資料.</div>
       <div className="flex items-center space-x-2">
         <span className="text-sm text-muted-foreground">每頁顯示</span>
         <select
-          value={table.getState().pagination.pageSize}
+          value={pageSize}
           onChange={(e) => {
             table.setPageSize(Number(e.target.value))
           }}
           className="border rounded px-2 py-1 text-sm"
         >
-          {[10, 20, 30, 40, 50].map((pageSize) => (
-            <option key={pageSize} value={pageSize}>
-              {pageSize}
+          {[10, 20, 30, 40, 50].map((size) => (
+            <option key={size} value={size}>
+              {size}
             </option>
           ))}
         </select>
@@ -109,7 +103,7 @@ function PaginationControls<TData>({ table, data }: PaginationControlsProps<TDat
         <Button
           variant="outline"
           size="sm"
-          onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+          onClick={() => table.setPageIndex(pageCount - 1)}
           disabled={!table.getCanNextPage()}
         >
           最後一頁
@@ -152,6 +146,16 @@ function ColumnVisibilityToggle<TData>({ table }: ColumnVisibilityToggleProps<TD
       </DropdownMenuContent>
     </DropdownMenu>
   )
+}
+
+export interface FilterConfig {
+  key: string
+  label: string
+  type: 'select' | 'multiSelect'
+  options: FilterOption[] | (() => FilterOption[])
+  placeholder?: string
+  defaultValue?: string
+  width?: string
 }
 
 interface FilterSelectorProps {
@@ -205,7 +209,9 @@ function FilterSelector({ config, value, onChange }: FilterSelectorProps) {
         </Select>
       </div>
     )
-  } else if (config.type === 'multiSelect') {
+  }
+
+  if (config.type === 'multiSelect') {
     return (
       <div className="flex flex-col gap-1">
         <label className="text-xs font-medium text-muted-foreground">{config.label}</label>
@@ -260,68 +266,86 @@ function FilterSelector({ config, value, onChange }: FilterSelectorProps) {
   return null
 }
 
+interface SearchConfig {
+  value?: string
+  onChange?: (value: string) => void
+  placeholder?: string
+  searchableFields?: string[]
+}
+
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
-  pageCount?: number
-  pagination?: PaginationState
-  onPaginationChange?: OnChangeFn<PaginationState>
-  sorting?: SortingState
-  onSortingChange?: OnChangeFn<SortingState>
-  globalFilter?: string
-  onGlobalFilterChange?: OnChangeFn<string>
-  searchValue?: string
-  onSearchChange?: (value: string) => void
-  searchPlaceholder?: string
-  searchableFields?: string[]
-  filters?: FilterConfig[]
-  filtersValue?: Record<string, string>
-  onFiltersChange?: (filters: Record<string, string>) => void
+  pagination?: {
+    state?: PaginationState
+    onChange?: OnChangeFn<PaginationState>
+    pageCount?: number
+    show?: boolean
+  }
+  sorting?: {
+    state?: SortingState
+    onChange?: OnChangeFn<SortingState>
+  }
+  search?: SearchConfig
+  filters?: {
+    config?: FilterConfig[]
+    value?: Record<string, string>
+    onChange?: (filters: Record<string, string>) => void
+  }
+
+  rowSelection?: {
+    state?: RowSelectionState
+    onChange?: OnChangeFn<RowSelectionState>
+    getRowId?: (row: TData) => string
+  }
+
   toolbar?: React.ReactNode | ((table: ReturnType<typeof useReactTable<TData>>) => React.ReactNode)
-  showPagination?: boolean
   showColumnVisibilityToggle?: boolean
-  rowSelection?: RowSelectionState
-  onRowSelectionChange?: OnChangeFn<RowSelectionState>
-  getRowId?: (row: TData) => string
 }
 
 export function DataTable<TData, TValue>({
-  columns,
   data,
-  pageCount,
+  columns,
   pagination,
-  onPaginationChange,
   sorting,
-  onSortingChange,
-  toolbar,
-  globalFilter,
-  onGlobalFilterChange,
-  searchValue,
-  onSearchChange,
-  searchPlaceholder = '搜尋...',
-  filters = [],
-  filtersValue = {},
-  onFiltersChange,
-  showPagination = true,
-  showColumnVisibilityToggle = true,
+  search,
+  filters,
   rowSelection,
-  onRowSelectionChange,
-  getRowId
+  toolbar,
+  showColumnVisibilityToggle = true
 }: DataTableProps<TData, TValue>) {
+  const [internalPagination, setInternalPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10
+  })
+  const [internalGlobalFilter, setInternalGlobalFilter] = useState<string>('')
+  const [internalSorting, setInternalSorting] = useState<SortingState>([])
+  const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [internalRowSelection, setInternalRowSelection] = React.useState<RowSelectionState>({})
+  const [internalFilters, setInternalFilters] = React.useState<Record<string, string>>({})
 
-  const handleSearchChange = React.useCallback(
-    (value: string) => {
-      if (onSearchChange) {
-        onSearchChange(value)
-      } else if (onGlobalFilterChange) {
-        onGlobalFilterChange(value)
-      }
-    },
-    [onSearchChange, onGlobalFilterChange]
-  )
+  const paginationState = pagination?.state ?? internalPagination
+  const paginationOnChange = pagination?.onChange ?? setInternalPagination
+  const paginationPageCount = pagination?.pageCount
+  const showPagination = pagination?.show ?? true
+
+  const searchValue = search?.value ?? internalGlobalFilter
+  const searchOnChange = search?.onChange ?? setInternalGlobalFilter
+  const searchPlaceholder = search?.placeholder ?? '搜尋...'
+  const showSearch = !!search
+
+  const sortingState = sorting?.state ?? internalSorting
+  const sortingOnChange = sorting?.onChange ?? setInternalSorting
+
+  const rowSelectionState = rowSelection?.state ?? internalRowSelection
+  const rowSelectionOnChange = rowSelection?.onChange ?? setInternalRowSelection
+  const getRowId = rowSelection?.getRowId
+
+  const filtersConfig = filters?.config ?? []
+  const filtersValue = filters?.value ?? internalFilters
+  const filtersOnChange = filters?.onChange ?? setInternalFilters
+  const showFilters = filtersConfig.length > 0
 
   const handleFilterChange = React.useCallback(
     (key: string, value: string) => {
@@ -330,34 +354,38 @@ export function DataTable<TData, TValue>({
       if (!value || value === '') {
         delete newFilters[key]
       }
-      if (onFiltersChange) {
-        onFiltersChange(newFilters)
-      }
+
+      filtersOnChange(newFilters)
     },
-    [filtersValue, onFiltersChange]
+    [filtersValue, filtersOnChange]
   )
+
+  const clearAllFilters = React.useCallback(() => {
+    filtersOnChange({})
+  }, [filtersOnChange])
 
   const table = useReactTable({
     data,
     columns,
-    pageCount: pageCount ?? -1,
-    manualPagination: pageCount !== undefined,
-    manualSorting: sorting !== undefined,
+    pageCount: paginationPageCount ?? -1,
+    manualPagination: paginationPageCount !== undefined,
+    onPaginationChange: paginationOnChange,
+    onGlobalFilterChange: searchOnChange,
+    manualSorting: sorting?.state !== undefined,
+    onSortingChange: sortingOnChange,
     ...(getRowId && { getRowId }),
+    onRowSelectionChange: rowSelectionOnChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
-    onRowSelectionChange: onRowSelectionChange || setInternalRowSelection,
-    onPaginationChange,
-    onSortingChange,
     state: {
-      sorting: sorting ?? [],
+      pagination: paginationState,
+      globalFilter: searchValue,
+      sorting: sortingState,
       columnFilters,
       columnVisibility,
-      rowSelection: rowSelection ?? internalRowSelection,
-      pagination: pagination ?? { pageIndex: 0, pageSize: 10 },
-      globalFilter: globalFilter
+      rowSelection: rowSelectionState
     }
   })
 
@@ -368,12 +396,12 @@ export function DataTable<TData, TValue>({
       {/* 搜尋和篩選區域 */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          {/* 全局搜尋 */}
-          {(onSearchChange || onGlobalFilterChange) && (
+          {/* 搜尋輸入框 */}
+          {showSearch && (
             <Input
               placeholder={searchPlaceholder}
-              value={searchValue ?? globalFilter ?? ''}
-              onChange={(event) => handleSearchChange(event.target.value)}
+              value={searchValue}
+              onChange={(event) => searchOnChange(event.target.value)}
               className="max-w-sm"
             />
           )}
@@ -386,9 +414,9 @@ export function DataTable<TData, TValue>({
         </div>
 
         {/* 篩選器區域 */}
-        {filters.length > 0 && (
+        {showFilters && (
           <div className="flex flex-wrap gap-4 p-4 bg-muted/10 rounded-lg">
-            {filters.map((filter) => (
+            {filtersConfig.map((filter) => (
               <FilterSelector
                 key={filter.key}
                 config={filter}
@@ -399,12 +427,7 @@ export function DataTable<TData, TValue>({
 
             {/* 清除篩選按鈕 */}
             {Object.keys(filtersValue).length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onFiltersChange?.({})}
-                className="h-9"
-              >
+              <Button variant="outline" size="sm" onClick={clearAllFilters} className="h-9">
                 清除篩選
               </Button>
             )}
@@ -453,7 +476,14 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* 分頁控制 */}
-      {showPagination && <PaginationControls data={data} table={table} />}
+      {showPagination && (
+        <PaginationControls
+          table={table}
+          totalCount={
+            paginationPageCount ? paginationPageCount * paginationState.pageSize : data.length
+          }
+        />
+      )}
     </div>
   )
 }

@@ -2,7 +2,6 @@
 import React, { useState } from 'react'
 import {
   ColumnDef,
-  ColumnFiltersState,
   SortingState,
   VisibilityState,
   PaginationState,
@@ -12,7 +11,8 @@ import {
   getSortedRowModel,
   useReactTable,
   OnChangeFn,
-  Table
+  Table,
+  getFilteredRowModel
 } from '@tanstack/react-table'
 import {
   Select,
@@ -172,7 +172,6 @@ function FilterSelector({ config, value, onChange }: FilterSelectorProps) {
     return result
   }, [value])
 
-  // 處理多選邏輯
   const handleMultiSelectChange = React.useCallback(
     (optionValue: string, isChecked: boolean) => {
       const currentSelectedValues = value ? value.split(',') : []
@@ -198,7 +197,7 @@ function FilterSelector({ config, value, onChange }: FilterSelectorProps) {
             <SelectValue placeholder={config.placeholder || `選擇${config.label}`} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">全部{config.label}</SelectItem>
+            <SelectItem value="all">全部</SelectItem>
             {options.map((option) => (
               <SelectItem key={String(option.value)} value={String(option.value)}>
                 {option.label}
@@ -321,9 +320,8 @@ export function DataTable<TData, TValue>({
   const [internalGlobalFilter, setInternalGlobalFilter] = useState<string>('')
   const [internalSorting, setInternalSorting] = useState<SortingState>([])
   const [internalRowSelection, setInternalRowSelection] = useState<RowSelectionState>({})
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [internalFilters, setInternalFilters] = React.useState<Record<string, string>>({})
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [internalFilters, setInternalFilters] = useState<Record<string, string>>({})
 
   const paginationState = pagination?.state ?? internalPagination
   const paginationOnChange = pagination?.onChange ?? setInternalPagination
@@ -349,12 +347,13 @@ export function DataTable<TData, TValue>({
 
   const handleFilterChange = React.useCallback(
     (key: string, value: string) => {
-      const newFilters = { ...filtersValue, [key]: value }
+      const newFilters = { ...filtersValue }
 
       if (!value || value === '') {
         delete newFilters[key]
+      } else {
+        newFilters[key] = value
       }
-
       filtersOnChange(newFilters)
     },
     [filtersValue, filtersOnChange]
@@ -376,14 +375,20 @@ export function DataTable<TData, TValue>({
     ...(getRowId && { getRowId }),
     onRowSelectionChange: rowSelectionOnChange,
     getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     state: {
       pagination: paginationState,
       globalFilter: searchValue,
       sorting: sortingState,
-      columnFilters,
+      columnFilters: Object.entries(filtersValue)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        .filter(([key, value]) => value !== 'all' && value !== '')
+        .map(([key, value]) => ({
+          id: key,
+          value: value
+        })),
       columnVisibility,
       rowSelection: rowSelectionState
     }

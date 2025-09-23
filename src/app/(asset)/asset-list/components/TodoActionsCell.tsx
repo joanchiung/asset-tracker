@@ -3,8 +3,7 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel
+  DropdownMenuItem
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { MoreHorizontal } from 'lucide-react'
@@ -79,7 +78,6 @@ export const TodoActionsCell: React.FC<TodoActionsCellProps> = ({ todo, onEditTo
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel>操作</DropdownMenuLabel>
         <DropdownMenuItem onClick={() => onEditTodo(todo)}>編輯</DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => {

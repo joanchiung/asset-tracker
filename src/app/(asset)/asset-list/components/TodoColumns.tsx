@@ -45,10 +45,13 @@ export const getTodoColumns = (
         {row.original.completed ? '已完成' : '待處理'}
       </Badge>
     ),
-    enableSorting: true // 假設completed欄位也可以排序
+    enableSorting: true,
+    enableGlobalFilter: true
   },
   {
     accessorKey: 'title',
+    enableSorting: false,
+    enableGlobalFilter: true,
     header: ({ column }) => {
       return (
         <Button
@@ -60,8 +63,7 @@ export const getTodoColumns = (
         </Button>
       )
     },
-    cell: ({ row }) => <div className="font-medium">{row.getValue('title')}</div>,
-    enableSorting: true
+    cell: ({ row }) => <div className="font-medium">{row.getValue('title')}</div>
   },
   {
     accessorKey: 'description',
@@ -73,11 +75,12 @@ export const getTodoColumns = (
           <span>{description || '沒有內容'}</span>
         </>
       )
-    },
-    enableSorting: false // 描述通常不排序
+    }
   },
   {
     accessorKey: 'priority',
+    enableSorting: true,
+    enableGlobalFilter: true,
     header: ({ column }) => {
       return (
         <Button
@@ -92,11 +95,12 @@ export const getTodoColumns = (
     cell: ({ row }) => {
       const priority = row.getValue('priority') as Todo['priority']
       return <Badge className={`${priorityMap[priority]} text-white`}>{priority}</Badge>
-    },
-    enableSorting: true
+    }
   },
   {
     accessorKey: 'dueDate',
+    enableSorting: true,
+    enableGlobalFilter: true,
     header: ({ column }) => {
       return (
         <Button
@@ -112,8 +116,7 @@ export const getTodoColumns = (
       const dueDate = row.getValue('dueDate') as string | null
       if (!dueDate) return 'N/A'
       return new Date(dueDate).toLocaleDateString()
-    },
-    enableSorting: true
+    }
   },
   {
     id: 'actions',

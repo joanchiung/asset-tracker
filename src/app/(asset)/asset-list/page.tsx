@@ -6,16 +6,19 @@ import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { fetchFunc } from '@/lib/axios'
 import CreateTransactionForm from './components/CreateTransactionForm'
-import AssetSummary from './components/AssetSummary'
+/// import AssetSummary from './components/AssetSummary'
 import { getTodoColumns } from './components/TodoColumns'
 import { DataTable } from './components/DataTable'
 import { GetTodosParams, UpdateTodoRequest } from '@/constant/api/todos/request-response.types'
-import { OnChangeFn, SortingState, PaginationState } from '@tanstack/react-table'
+import { OnChangeFn, SortingState } from '@tanstack/react-table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Todo } from '@/constant/api/todos/request-response.types'
 import { EditTodoDialog } from './components/EditTodoDialog'
 import { Button } from '@/components/ui/button'
 import { FilterConfig } from './components/DataTable'
+
+const VALID_SORT_FIELDS = ['created_at', 'updated_at', 'due_date', 'priority', 'title'] as const
+type ValidSortField = (typeof VALID_SORT_FIELDS)[number]
 
 interface UpdateTodoPayload {
   id: number
@@ -26,55 +29,45 @@ export default function AssetListPage() {
   const { data: session } = useSession()
   const token = session?.accessToken as string
   const queryClient = useQueryClient()
-  const [displayCurrency, setDisplayCurrency] = useState<'TWD' | 'USD'>('TWD')
+  // const [displayCurrency, setDisplayCurrency] = useState<'TWD' | 'USD'>('TWD')
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
   const [rowSelection, setRowSelection] = useState({})
-  const [filtersValue, setFiltersValue] = useState<Record<string, string>>({})
-
   const [queryParams, setQueryParams] = useState<GetTodosParams>({
     page: 1,
     limit: 10,
     sortBy: 'created_at',
     sortOrder: 'desc'
   })
-  const [searchValue, setSearchValue] = useState('')
 
-  const handleSearchChange = (value: string) => {
-    setSearchValue(value)
-  }
+  // // 獲取資產總覽
+  // const { data: assetsDatas } = useQuery({
+  //   queryKey: ['GetAssetSummary'],
+  //   queryFn: () =>
+  //     fetchFunc({
+  //       key: 'GetAssetSummary',
+  //       headers: { Authorization: `Bearer ${token}` }
+  //     }),
+  //   enabled: !!token,
+  //   select: (data) => data.data?.assets
+  // })
 
-  const VALID_SORT_FIELDS = ['created_at', 'updated_at', 'due_date', 'priority', 'title'] as const
-  type ValidSortField = (typeof VALID_SORT_FIELDS)[number]
-
-  // 獲取資產總覽
-  const { data: assetsDatas } = useQuery({
-    queryKey: ['GetAssetSummary'],
-    queryFn: () =>
-      fetchFunc({
-        key: 'GetAssetSummary',
-        headers: { Authorization: `Bearer ${token}` }
-      }),
-    enabled: !!token,
-    select: (data) => data.data?.assets
-  })
-
-  // 獲取匯率
-  const { data: exchangeRates } = useQuery({
-    queryKey: ['GetExchangeRates', displayCurrency],
-    queryFn: () =>
-      fetchFunc({
-        key: 'GetExchangeRates',
-        params: { baseCurrency: displayCurrency }
-      }),
-    enabled: !!token,
-    staleTime: 1000 * 60 * 15,
-    select: (data) => data.data?.rates
-  })
+  // // 獲取匯率
+  // const { data: exchangeRates } = useQuery({
+  //   queryKey: ['GetExchangeRates', displayCurrency],
+  //   queryFn: () =>
+  //     fetchFunc({
+  //       key: 'GetExchangeRates',
+  //       params: { baseCurrency: displayCurrency }
+  //     }),
+  //   enabled: !!token,
+  //   staleTime: 1000 * 60 * 15,
+  //   select: (data) => data.data?.rates
+  // })
 
   // 獲取交易紀錄
-  const { data: todosResponse } = useQuery({
+  const { data: { transactions = [], pagination } = {} } = useQuery({
     queryKey: ['GetTodos', queryParams],
     queryFn: () =>
       fetchFunc({
@@ -83,11 +76,12 @@ export default function AssetListPage() {
         params: queryParams
       }),
     enabled: !!token,
-    staleTime: 1000 * 60 * 5
+    staleTime: 1000 * 60 * 5,
+    select: (data) => ({
+      transactions: data?.data?.todos || [],
+      pagination: data?.data?.pagination
+    })
   })
-
-  const transactions = todosResponse?.data?.todos || []
-  const pagination = todosResponse?.data?.pagination
 
   // 更新待辦事項 mutation
   const updateTodoMutation = useMutation({
@@ -182,17 +176,17 @@ export default function AssetListPage() {
   })
 
   // 計算總資產
-  const totalValue = (() => {
-    if (!assetsDatas?.length || !exchangeRates || Object.keys(exchangeRates).length === 0) {
-      return 0
-    }
+  // const totalValue = (() => {
+  //   if (!assetsDatas?.length || !exchangeRates || Object.keys(exchangeRates).length === 0) {
+  //     return 0
+  //   }
 
-    return assetsDatas.reduce((total, assetsData) => {
-      const rate = exchangeRates[assetsData.currency.toUpperCase()] || 0
-      const amount = parseFloat(assetsData.balance) || 0
-      return total + amount * rate
-    }, 0)
-  })()
+  //   return assetsDatas.reduce((total, assetsData) => {
+  //     const rate = exchangeRates[assetsData.currency.toUpperCase()] || 0
+  //     const amount = parseFloat(assetsData.balance) || 0
+  //     return total + amount * rate
+  //   }, 0)
+  // })()
 
   // 處理編輯按鈕點擊
   const handleEditTodo = (todo: Todo) => {
@@ -200,52 +194,40 @@ export default function AssetListPage() {
     setIsEditDialogOpen(true)
   }
 
-  // 處理排序變更 (簡化)
+  // // 處理排序變更 (簡化)
   const handleSortingChange: OnChangeFn<SortingState> = useCallback(
-    (updater) => {
+    (updaterOrValue) => {
+      // 取得當前的排序狀態
       const currentSorting = [
         {
           id: queryParams.sortBy || 'created_at',
           desc: queryParams.sortOrder === 'desc'
         }
       ]
-
-      const newSortingState = typeof updater === 'function' ? updater(currentSorting) : updater
-
-      const updateSortParams = (sortBy: ValidSortField, sortOrder: 'asc' | 'desc') => {
-        setQueryParams((prev) => ({ ...prev, sortBy, sortOrder, page: 1 }))
-      }
+      const newSortingState =
+        typeof updaterOrValue === 'function' ? updaterOrValue(currentSorting) : updaterOrValue
 
       if (newSortingState.length > 0) {
         const { id, desc } = newSortingState[0]
+
         if (VALID_SORT_FIELDS.includes(id as ValidSortField)) {
-          updateSortParams(id as ValidSortField, desc ? 'desc' : 'asc')
+          setQueryParams((prev) => ({
+            ...prev,
+            sortBy: id as ValidSortField,
+            sortOrder: desc ? 'desc' : 'asc',
+            page: 1
+          }))
         }
       } else {
-        updateSortParams('created_at', 'desc')
+        setQueryParams((prev) => ({
+          ...prev,
+          sortBy: 'created_at',
+          sortOrder: 'desc',
+          page: 1
+        }))
       }
     },
-    [VALID_SORT_FIELDS, queryParams.sortBy, queryParams.sortOrder]
-  )
-
-  // 處理分頁變更 (簡化)
-  const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
-    (updater) => {
-      const newPaginationState =
-        typeof updater === 'function'
-          ? updater({
-              pageIndex: (queryParams.page || 1) - 1,
-              pageSize: queryParams.limit || 10
-            })
-          : updater
-
-      setQueryParams((prev) => ({
-        ...prev,
-        page: newPaginationState.pageIndex + 1,
-        limit: newPaginationState.pageSize
-      }))
-    },
-    [queryParams]
+    [queryParams, setQueryParams]
   )
 
   const todoColumns = getTodoColumns(handleEditTodo, token)
@@ -331,113 +313,91 @@ export default function AssetListPage() {
     }
   ]
 
-  const filteredTransactions = (() => {
-    let result = [...transactions]
-
-    if (searchValue.trim()) {
-      const searchFields: (keyof Todo)[] = ['title', 'description', 'priority', 'category']
-
-      result = result.filter((todo) =>
-        searchFields.some((field) =>
-          String(todo[field] || '')
-            .toLowerCase()
-            .includes(searchValue.toLowerCase())
-        )
-      )
-    }
-
-    Object.entries(filtersValue).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        if (key === 'completed') {
-          result = result.filter((todo) => String(todo.completed) === String(value))
-        } else {
-          const todoKey = key as keyof Todo
-          result = result.filter((todo) => String(todo[todoKey]) === String(value))
-        }
-      }
-    })
-
-    return result
-  })()
-
   return (
     <div className="space-y-8 p-4 md:p-6">
-      <AssetSummary
+      {/* <AssetSummary
         assets={assetsDatas ?? []}
         totalValue={totalValue}
         displayCurrency={displayCurrency}
         onCurrencyChange={setDisplayCurrency}
         exchangeRates={exchangeRates}
-      />
+      /> */}
 
       <div className="flex flex-col lg:flex-row gap-4 p-4">
         <Card className="w-full lg:flex-1 max-w-full">
-          <CardHeader>
+          <CardHeader className="flex flex-row gap-2 justify-between items-center">
             <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">資產排程表</CardTitle>
+            <CreateTransactionForm
+              onCreate={createTodoMutation.mutate}
+              loading={createTodoMutation.isPending}
+              availableCategories={todoCategories?.map((cat) => cat.name) || []}
+            />
           </CardHeader>
-          <CardContent className="flex flex-col gap-6 px-2 sm:px-6 w-full bg-indigo-200/0">
-            <div className="w-full flex items-center justify-between">
-              <h6 className="font-medium">預算項目列表</h6>
-              <CreateTransactionForm
-                onCreate={createTodoMutation.mutate}
-                loading={createTodoMutation.isPending}
-                availableCategories={todoCategories?.map((cat) => cat.name) || []}
-              />
-            </div>
-            <div className="overflow-x-auto ">
-              <DataTable
-                columns={todoColumns}
-                data={filteredTransactions}
-                search={{
-                  value: searchValue,
-                  onChange: handleSearchChange,
-                  placeholder: '搜尋標題、描述、優先度或分類...'
-                }}
-                pagination={{
-                  state: {
-                    pageIndex: (queryParams.page || 1) - 1,
-                    pageSize: queryParams.limit || 10
-                  },
-                  onChange: handlePaginationChange,
-                  pageCount: pagination?.totalPages || 1,
-                  show: true
-                }}
-                sorting={{
-                  state: [
-                    {
-                      id: queryParams.sortBy || 'id',
-                      desc: queryParams.sortOrder === 'desc'
+          <CardContent className="flex flex-col gap-6 px-2 sm:px-6 w-full">
+            <DataTable
+              columns={todoColumns}
+              data={transactions}
+              search={{
+                placeholder: '搜尋標題、描述、優先度或分類...'
+              }}
+              pagination={{
+                state: {
+                  pageIndex: (queryParams.page || 1) - 1,
+                  pageSize: queryParams.limit || 10
+                },
+                onChange: (updater) => {
+                  setQueryParams((prev) => {
+                    const currentPagination = {
+                      pageIndex: (prev.page || 1) - 1,
+                      pageSize: prev.limit || 10
                     }
-                  ],
-                  onChange: handleSortingChange
-                }}
-                toolbar={(table) => (
-                  <div className="flex gap-2">
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      disabled={Object.keys(table.getState().rowSelection).length === 0}
-                      onClick={() => {
-                        const selectedRows = table.getFilteredSelectedRowModel().rows
-                        const selectedIds = selectedRows.map((row) => row.original.id)
-                        handleBatchDelete(selectedIds)
-                      }}
-                    >
-                      刪除選中項目 ({Object.keys(table.getState().rowSelection).length})
-                    </Button>
-                  </div>
-                )}
-                rowSelection={{
-                  state: rowSelection,
-                  onChange: setRowSelection
-                }}
-                filters={{
-                  config: filters,
-                  value: filtersValue,
-                  onChange: setFiltersValue
-                }}
-              />
-            </div>
+
+                    const newPagination =
+                      typeof updater === 'function' ? updater(currentPagination) : updater
+
+                    return {
+                      ...prev,
+                      page: newPagination.pageIndex + 1,
+                      limit: newPagination.pageSize
+                    }
+                  })
+                },
+                pageCount: pagination?.totalPages || 1,
+                show: true
+              }}
+              toolbar={(table) => (
+                <div className="flex gap-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={Object.keys(table.getState().rowSelection).length === 0}
+                    onClick={() => {
+                      const selectedRows = table.getFilteredSelectedRowModel().rows
+                      const selectedIds = selectedRows.map((row) => row.original.id)
+                      handleBatchDelete(selectedIds)
+                    }}
+                  >
+                    刪除選中項目 ({Object.keys(table.getState().rowSelection).length})
+                  </Button>
+                </div>
+              )}
+              sorting={{
+                state: [
+                  {
+                    id: queryParams.sortBy || 'id',
+                    desc: queryParams.sortOrder === 'desc'
+                  }
+                ],
+                onChange: handleSortingChange
+              }}
+              rowSelection={{
+                state: rowSelection,
+                onChange: setRowSelection
+              }}
+              filters={{
+                config: filters
+              }}
+            />
           </CardContent>
         </Card>
 

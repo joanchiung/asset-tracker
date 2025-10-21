@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { fetchFunc } from '@/lib/axios'
 import CreateTransactionForm from './components/CreateTransactionForm'
-/// import AssetSummary from './components/AssetSummary'
+import AssetSummary from './components/AssetSummary'
 import { getTodoColumns } from './components/TodoColumns'
 import { DataTable } from './components/DataTable'
 import { GetTodosParams, UpdateTodoRequest } from '@/constant/api/todos/request-response.types'
@@ -29,7 +29,6 @@ export default function AssetListPage() {
   const { data: session } = useSession()
   const token = session?.accessToken as string
   const queryClient = useQueryClient()
-  // const [displayCurrency, setDisplayCurrency] = useState<'TWD' | 'USD'>('TWD')
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
@@ -40,31 +39,6 @@ export default function AssetListPage() {
     sortBy: 'created_at',
     sortOrder: 'desc'
   })
-
-  // // 獲取資產總覽
-  // const { data: assetsDatas } = useQuery({
-  //   queryKey: ['GetAssetSummary'],
-  //   queryFn: () =>
-  //     fetchFunc({
-  //       key: 'GetAssetSummary',
-  //       headers: { Authorization: `Bearer ${token}` }
-  //     }),
-  //   enabled: !!token,
-  //   select: (data) => data.data?.assets
-  // })
-
-  // // 獲取匯率
-  // const { data: exchangeRates } = useQuery({
-  //   queryKey: ['GetExchangeRates', displayCurrency],
-  //   queryFn: () =>
-  //     fetchFunc({
-  //       key: 'GetExchangeRates',
-  //       params: { baseCurrency: displayCurrency }
-  //     }),
-  //   enabled: !!token,
-  //   staleTime: 1000 * 60 * 15,
-  //   select: (data) => data.data?.rates
-  // })
 
   // 獲取交易紀錄
   const { data: { transactions = [], pagination } = {} } = useQuery({
@@ -174,19 +148,6 @@ export default function AssetListPage() {
     staleTime: 1000 * 60 * 60,
     select: (data) => data.data?.categories
   })
-
-  // 計算總資產
-  // const totalValue = (() => {
-  //   if (!assetsDatas?.length || !exchangeRates || Object.keys(exchangeRates).length === 0) {
-  //     return 0
-  //   }
-
-  //   return assetsDatas.reduce((total, assetsData) => {
-  //     const rate = exchangeRates[assetsData.currency.toUpperCase()] || 0
-  //     const amount = parseFloat(assetsData.balance) || 0
-  //     return total + amount * rate
-  //   }, 0)
-  // })()
 
   // 處理編輯按鈕點擊
   const handleEditTodo = (todo: Todo) => {
@@ -314,15 +275,10 @@ export default function AssetListPage() {
   ]
 
   return (
-    <div className="space-y-8 p-4 md:p-6">
-      {/* <AssetSummary
-        assets={assetsDatas ?? []}
-        totalValue={totalValue}
-        displayCurrency={displayCurrency}
-        onCurrencyChange={setDisplayCurrency}
-        exchangeRates={exchangeRates}
-      /> */}
-
+    <div className="p-4 md:p-6">
+      <div className="flex flex-col lg:flex-row gap-4 p-4">
+        <AssetSummary />
+      </div>
       <div className="flex flex-col lg:flex-row gap-4 p-4">
         <Card className="w-full lg:flex-1 max-w-full">
           <CardHeader className="flex flex-row gap-2 justify-between items-center">

@@ -1,74 +1,159 @@
-import { Asset, ExchangeRates } from '@/constant/api/asset/request-response.types'
+'use client'
+import React, { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useSession } from 'next-auth/react'
+import { Card, CardContent } from '@/components/ui/card'
+import { fetchFunc } from '@/lib/axios'
+import BigNumber from 'bignumber.js'
 
-interface AssetSummaryProps {
-  assets: Asset[]
-  totalValue: number
-  displayCurrency: 'TWD' | 'USD'
-  onCurrencyChange: (currency: 'TWD' | 'USD') => void
-  exchangeRates?: ExchangeRates
+interface Transaction {
+  id: number
+  title: string
+  description: string
+  completed: boolean
+  priority: string
 }
 
-export default function AssetSummary({
-  assets,
-  totalValue,
-  displayCurrency,
-  onCurrencyChange,
-  exchangeRates
-}: AssetSummaryProps) {
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: displayCurrency,
-    maximumFractionDigits: 2
+interface Asset {
+  currency: string
+  amount: string
+}
+
+interface AnalyzedResult {
+  income: { [key: string]: string }
+  expense: { [key: string]: string }
+  assets: Asset[]
+}
+
+function analyzeTransactions(transactions: Transaction[]): AnalyzedResult {
+  const income: { [key: string]: BigNumber } = {}
+  const expense: { [key: string]: BigNumber } = {}
+
+  transactions.forEach((transaction) => {
+    const { description } = transaction
+
+    const match = description.match(/(收入|支出):\s*([\d.]+)\s*([A-Z]+)/)
+
+    if (!match) return
+
+    const [, type, amountStr, currency] = match
+    const amount = new BigNumber(amountStr)
+
+    if (type === '收入') {
+      income[currency] = (income[currency] || new BigNumber(0)).plus(amount)
+    } else if (type === '支出') {
+      expense[currency] = (expense[currency] || new BigNumber(0)).plus(amount)
+    }
   })
 
+  const assetMap = new Map<string, BigNumber>()
+
+  Object.entries(income).forEach(([currency, amount]) => {
+    assetMap.set(currency, amount)
+  })
+
+  Object.entries(expense).forEach(([currency, amount]) => {
+    const current = assetMap.get(currency) ?? new BigNumber(0)
+    assetMap.set(currency, current.minus(amount))
+  })
+
+  const assets: Asset[] = Array.from(assetMap).map(([currency, amount]) => ({
+    currency,
+    amount: amount.toFixed()
+  }))
+
+  const incomeStr: { [key: string]: string } = {}
+  const expenseStr: { [key: string]: string } = {}
+  Object.entries(income).forEach(([k, v]) => (incomeStr[k] = v.toFixed()))
+  Object.entries(expense).forEach(([k, v]) => (expenseStr[k] = v.toFixed()))
+
+  return {
+    income: incomeStr,
+    expense: expenseStr,
+    assets
+  }
+}
+
+function formatNumberWithCommas(num: string | number): string {
+  const bigNum = new BigNumber(num)
+  const [intPart, decPart] = bigNum.toFixed().split('.')
+
+  const intFormatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+
+  return decPart ? `${intFormatted}.${decPart}` : intFormatted
+}
+
+export default function AssetSummary() {
+  const { data: session } = useSession()
+  const token = session?.accessToken as string
+
+  const [displayCurrency, setDisplayCurrency] = useState<'TWD' | 'USD'>('TWD')
+
+  // 獲取全部交易紀錄
+  const { data } = useQuery({
+    queryKey: ['GetTodos'],
+    queryFn: () =>
+      fetchFunc({
+        key: 'GetTodos',
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+    enabled: !!token,
+    staleTime: 1000 * 60 * 5,
+    select: (data) => ({
+      transactions: (data?.data?.todos || []).filter((item) => item.completed),
+      pagination: data?.data?.pagination
+    })
+  })
+
+  const analyzed = analyzeTransactions(data?.transactions ?? [])
+
+  const handleCurrencyChange = (currency: 'TWD' | 'USD') => {
+    setDisplayCurrency(currency)
+  }
+
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <div className="flex justify-between items-start mb-4">
+    <Card className="w-full">
+      <CardContent>
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 mb-6">總資產價值</h2>
+          </div>
+          <div className="flex space-x-1 bg-gray-200 p-1 rounded-lg">
+            <button
+              onClick={() => handleCurrencyChange('TWD')}
+              className={`px-3 py-1 text-sm rounded-md ${
+                displayCurrency === 'TWD' ? 'bg-white shadow' : ''
+              }`}
+            >
+              TWD
+            </button>
+            <button
+              onClick={() => handleCurrencyChange('USD')}
+              className={`px-3 py-1 text-sm rounded-md ${
+                displayCurrency === 'USD' ? 'bg-white shadow' : ''
+              }`}
+            >
+              USD
+            </button>
+          </div>
+        </div>
         <div>
-          <h2 className="text-sm font-medium text-gray-500">總資產價值</h2>
-          <p className="text-3xl font-bold text-gray-900">{formatter.format(totalValue)}</p>
+          <h2 className="font-bold text-slate-900 mb-6">淨資產詳情</h2>
+          <div className=" grid grid-cols-4 gap-4">
+            {analyzed.assets.map((asset, idx) => (
+              <div
+                key={idx}
+                className=" flex flex-col items-left justify-between p-4 bg-gradient-to-r   rounded-lg border border-blue-100"
+              >
+                <p className="text-sm">{asset.currency}</p>
+                <p className="text-xl font-bold text-blue-600">
+                  {formatNumberWithCommas(asset.amount)}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex space-x-1 bg-gray-200 p-1 rounded-lg">
-          <button
-            onClick={() => onCurrencyChange('TWD')}
-            className={`px-3 py-1 text-sm rounded-md ${
-              displayCurrency === 'TWD' ? 'bg-white shadow' : ''
-            }`}
-          >
-            TWD
-          </button>
-          <button
-            onClick={() => onCurrencyChange('USD')}
-            className={`px-3 py-1 text-sm rounded-md ${
-              displayCurrency === 'USD' ? 'bg-white shadow' : ''
-            }`}
-          >
-            USD
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        {assets.map((asset) => {
-          const rate = exchangeRates?.[asset.currency.toUpperCase()] ?? null
-
-          return (
-            <div key={asset.currency} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-              <p className="font-bold text-lg text-gray-800">{asset.currency.toUpperCase()}</p>
-              <p className="text-gray-600">{(asset.amount || 0).toFixed(4)}</p>
-
-              {rate !== null ? (
-                <p className="text-xs text-gray-500">≈ {formatter.format(asset.amount * rate)}</p>
-              ) : (
-                <p className="text-xs text-gray-500">-- (無匯率資料)</p>
-              )}
-            </div>
-          )
-        })}
-        {assets.length === 0 && (
-          <p className="text-gray-500 col-span-full">尚無資產，從新增一筆交易開始吧！</p>
-        )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }

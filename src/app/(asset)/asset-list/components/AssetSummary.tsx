@@ -4,7 +4,9 @@ import { useQuery } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import { Card, CardContent } from '@/components/ui/card'
 import { fetchFunc } from '@/lib/axios'
+import { useExchangeRatesQuery } from '@/api/exchangeRatesApi'
 import BigNumber from 'bignumber.js'
+import { calculateTotalAssetValues } from '@/utils/currencyConverter'
 
 interface Transaction {
   id: number
@@ -105,50 +107,70 @@ export default function AssetSummary() {
     })
   })
 
+  // 獲取匯率
+  const { data: exchangeRatesData } = useExchangeRatesQuery(displayCurrency, !!token)
+
+  const exchangeRates = exchangeRatesData?.rates || []
+
   const analyzed = analyzeTransactions(data?.transactions ?? [])
 
   const handleCurrencyChange = (currency: 'TWD' | 'USD') => {
     setDisplayCurrency(currency)
   }
+  const { totalTWD, totalUSD } = calculateTotalAssetValues(analyzed, exchangeRates)
+
+  const totalTWDInteger = totalTWD.integerValue(BigNumber.ROUND_DOWN).toString()
+
+  const totalUSDInteger = totalUSD.integerValue(BigNumber.ROUND_DOWN).toString()
+
+  const displayValue = displayCurrency === 'TWD' ? totalTWDInteger : totalUSDInteger
+  const displayCode = displayCurrency
+
+  const formattedDisplayValue = new BigNumber(displayValue).toFormat(0)
 
   return (
     <Card className="w-full">
-      <CardContent>
-        <div className="flex justify-between items-start mb-4">
-          <div>
+      <CardContent className="flex flex-col gap-4">
+        <div className="">
+          <div className="flex justify-between items-start mb-4">
             <h2 className="text-xl font-bold text-slate-900 mb-6">總資產價值</h2>
+
+            <div className="flex space-x-1 bg-gray-200 p-1 rounded-lg">
+              <button
+                onClick={() => handleCurrencyChange('TWD')}
+                className={`px-3 py-1 text-sm rounded-md ${
+                  displayCurrency === 'TWD' ? 'bg-white shadow' : ''
+                }`}
+              >
+                TWD
+              </button>
+              <button
+                onClick={() => handleCurrencyChange('USD')}
+                className={`px-3 py-1 text-sm rounded-md ${
+                  displayCurrency === 'USD' ? 'bg-white shadow' : ''
+                }`}
+              >
+                USD
+              </button>
+            </div>
           </div>
-          <div className="flex space-x-1 bg-gray-200 p-1 rounded-lg">
-            <button
-              onClick={() => handleCurrencyChange('TWD')}
-              className={`px-3 py-1 text-sm rounded-md ${
-                displayCurrency === 'TWD' ? 'bg-white shadow' : ''
-              }`}
-            >
-              TWD
-            </button>
-            <button
-              onClick={() => handleCurrencyChange('USD')}
-              className={`px-3 py-1 text-sm rounded-md ${
-                displayCurrency === 'USD' ? 'bg-white shadow' : ''
-              }`}
-            >
-              USD
-            </button>
+
+          <div className="font-semibold  text-gray-800 flex items-baseline justify-end ">
+            <span className="mr-2 text-2xl  ">{displayCode}</span>
+            <span className="mr-2 text-[60px]  text-blue-700">{formattedDisplayValue}</span>
           </div>
         </div>
+
         <div>
-          <h2 className="font-bold text-slate-900 mb-6">淨資產詳情</h2>
+          <h2 className="font-bold text-slate-900 mb-2">淨資產詳情</h2>
           <div className=" grid grid-cols-4 gap-4">
             {analyzed.assets.map((asset, idx) => (
               <div
                 key={idx}
-                className=" flex flex-col items-left justify-between p-4 bg-gradient-to-r   rounded-lg border border-blue-100"
+                className=" flex flex-col items-left justify-between p-4  bg-gray-50 rounded-md  "
               >
                 <p className="text-sm">{asset.currency}</p>
-                <p className="text-xl font-bold text-blue-600">
-                  {formatNumberWithCommas(asset.amount)}
-                </p>
+                <p className="text-xl font-bold ">{formatNumberWithCommas(asset.amount)}</p>
               </div>
             ))}
           </div>

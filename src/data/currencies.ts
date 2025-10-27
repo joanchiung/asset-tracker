@@ -10,3 +10,5 @@ export const cryptoCurrenciesData = [
   { symbol: 'DOT', name: 'Polkadot' },
   { symbol: 'MATIC', name: 'Polygon' }
 ]
+
+export type CryptoCurrenciesData = typeof cryptoCurrenciesData

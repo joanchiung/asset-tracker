@@ -50,7 +50,7 @@ const getAllCurrencies = (majorFiatCodes: string[]) => [
 const formSchema = (currencies: string[]) =>
   z.object({
     title: z.string().min(1, '請輸入標題'),
-    amount: z.number().min(0.01, '金額必須大於 0'),
+    amount: z.number().positive('金額必須大於 0'),
     currency: z.enum(currencies as [string, ...string[]]),
     mainType: z.enum(['income', 'expense']),
     subType: z.string().min(1, '請選擇子類型'),

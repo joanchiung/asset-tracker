@@ -57,7 +57,7 @@ function PaginationControls<TData>({ table, totalCount }: PaginationControlsProp
 
   return (
     <div className="flex items-center justify-between space-x-2 py-4">
-      <div className="flex-1 text-sm text-muted-foreground">共 {totalCount} 筆資料.</div>
+      <div className="flex-1 text-sm text-muted-foreground">共 {totalCount} 筆資料</div>
       <div className="flex items-center space-x-2">
         <span className="text-sm text-muted-foreground">每頁顯示</span>
         <select
@@ -275,6 +275,8 @@ interface SearchConfig {
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  totalCounts: number
+
   pagination?: {
     state?: PaginationState
     onChange?: OnChangeFn<PaginationState>
@@ -304,6 +306,7 @@ interface DataTableProps<TData, TValue> {
 
 export function DataTable<TData, TValue>({
   data,
+  totalCounts,
   columns,
   pagination,
   sorting,
@@ -412,7 +415,7 @@ export function DataTable<TData, TValue>({
           )}
 
           {/* 右側工具列 */}
-          <div className="flex-grow flex justify-end gap-2">
+          <div className="flex justify-end gap-2">
             {renderToolbar}
             {showColumnVisibilityToggle && <ColumnVisibilityToggle table={table} />}
           </div>
@@ -481,14 +484,7 @@ export function DataTable<TData, TValue>({
       </div>
 
       {/* 分頁控制 */}
-      {showPagination && (
-        <PaginationControls
-          table={table}
-          totalCount={
-            paginationPageCount ? paginationPageCount * paginationState.pageSize : data.length
-          }
-        />
-      )}
+      {showPagination && <PaginationControls table={table} totalCount={totalCounts} />}
     </div>
   )
 }

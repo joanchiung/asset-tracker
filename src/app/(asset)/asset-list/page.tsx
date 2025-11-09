@@ -57,6 +57,8 @@ export default function AssetListPage() {
     })
   })
 
+  const totalCounts = pagination?.totalItems ?? 0
+
   // 更新待辦事項 mutation
   const updateTodoMutation = useMutation({
     mutationFn: ({ id, data }: UpdateTodoPayload) => {
@@ -293,6 +295,7 @@ export default function AssetListPage() {
             <DataTable
               columns={todoColumns}
               data={transactions}
+              totalCounts={totalCounts}
               search={{
                 placeholder: '搜尋標題、描述、優先度或分類...'
               }}

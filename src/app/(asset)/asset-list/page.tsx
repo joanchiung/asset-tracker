@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Todo } from '@/constant/api/todos/request-response.types'
 import { EditTodoDialog } from './components/EditTodoDialog'
 import { Button } from '@/components/ui/button'
-import { FilterConfig } from './components/DataTable'
+import { FilterConfig } from './components/dataTable/types'
 
 const VALID_SORT_FIELDS = ['created_at', 'updated_at', 'due_date', 'priority', 'title'] as const
 type ValidSortField = (typeof VALID_SORT_FIELDS)[number]
@@ -249,7 +249,8 @@ export default function AssetListPage() {
         })),
 
       placeholder: '選擇分類',
-      width: 'w-48'
+      width: 'w-48',
+      targetType: 'string'
     },
     {
       key: 'priority',
@@ -261,18 +262,20 @@ export default function AssetListPage() {
         { label: '低優先度', value: 'low' }
       ],
       placeholder: '選擇優先度',
-      width: 'w-36'
+      width: 'w-36',
+      targetType: 'string'
     },
     {
       key: 'completed',
       label: '完成狀態',
       type: 'select',
       options: [
-        { label: '已完成', value: 'true' },
-        { label: '待完成', value: 'false' }
+        { label: '已完成', value: true },
+        { label: '待完成', value: false }
       ],
       placeholder: '選擇狀態',
-      width: 'w-32'
+      width: 'w-32',
+      targetType: 'boolean'
     }
   ]
 

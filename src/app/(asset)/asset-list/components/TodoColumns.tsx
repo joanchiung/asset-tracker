@@ -66,6 +66,14 @@ export const getTodoColumns = (
     cell: ({ row }) => <div className="font-medium">{row.getValue('title')}</div>
   },
   {
+    accessorKey: 'category',
+    header: '分類',
+    filterFn: 'arrIncludesSome',
+    enableColumnFilter: true,
+    enableHiding: true,
+    cell: ({ row }) => <Badge variant="secondary">{row.original.category || '未分類'}</Badge>
+  },
+  {
     accessorKey: 'description',
     header: '內容',
     cell: ({ row }) => {

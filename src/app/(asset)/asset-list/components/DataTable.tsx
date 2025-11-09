@@ -11,16 +11,8 @@ import {
   getSortedRowModel,
   useReactTable,
   OnChangeFn,
-  Table,
   getFilteredRowModel
 } from '@tanstack/react-table'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import {
   Table as ShadcnTable,
   TableBody,
@@ -29,248 +21,12 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator
-} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-
-interface FilterOption {
-  label: string
-  value: string
-  count?: number
-}
-
-interface PaginationControlsProps<TData> {
-  table: Table<TData>
-  totalCount: number
-}
-
-function PaginationControls<TData>({ table, totalCount }: PaginationControlsProps<TData>) {
-  const { pageSize } = table.getState().pagination
-  const pageCount = table.getPageCount()
-
-  return (
-    <div className="flex items-center justify-between space-x-2 py-4">
-      <div className="flex-1 text-sm text-muted-foreground">共 {totalCount} 筆資料</div>
-      <div className="flex items-center space-x-2">
-        <span className="text-sm text-muted-foreground">每頁顯示</span>
-        <select
-          value={pageSize}
-          onChange={(e) => {
-            table.setPageSize(Number(e.target.value))
-          }}
-          className="border rounded px-2 py-1 text-sm"
-        >
-          {[10, 20, 30, 40, 50].map((size) => (
-            <option key={size} value={size}>
-              {size}
-            </option>
-          ))}
-        </select>
-        <span className="text-sm text-muted-foreground">筆</span>
-      </div>
-      <div className="space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.setPageIndex(0)}
-          disabled={!table.getCanPreviousPage()}
-        >
-          第一頁
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.previousPage()}
-          disabled={!table.getCanPreviousPage()}
-        >
-          上一頁
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.nextPage()}
-          disabled={!table.getCanNextPage()}
-        >
-          下一頁
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => table.setPageIndex(pageCount - 1)}
-          disabled={!table.getCanNextPage()}
-        >
-          最後一頁
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-interface ColumnVisibilityToggleProps<TData> {
-  table: Table<TData>
-}
-
-function ColumnVisibilityToggle<TData>({ table }: ColumnVisibilityToggleProps<TData>) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="ml-auto">
-          顯示/隱藏欄位
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {table
-          .getAllColumns()
-          .filter((column) => column.getCanHide())
-          .map((column) => {
-            return (
-              <DropdownMenuCheckboxItem
-                key={column.id}
-                className="capitalize"
-                checked={column.getIsVisible()}
-                onCheckedChange={(value) => column.toggleVisibility(!!value)}
-              >
-                {typeof column.columnDef.header === 'string'
-                  ? column.columnDef.header
-                  : String(column.id)}
-              </DropdownMenuCheckboxItem>
-            )
-          })}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-export interface FilterConfig {
-  key: string
-  label: string
-  type: 'select' | 'multiSelect'
-  options: FilterOption[] | (() => FilterOption[])
-  placeholder?: string
-  defaultValue?: string
-  width?: string
-}
-
-interface FilterSelectorProps {
-  config: FilterConfig
-  value: string
-  onChange: (value: string) => void
-}
-
-function FilterSelector({ config, value, onChange }: FilterSelectorProps) {
-  const options = typeof config.options === 'function' ? config.options() : config.options
-
-  const selectedValues = React.useMemo(() => {
-    const result = value ? value.split(',') : []
-    return result
-  }, [value])
-
-  const handleMultiSelectChange = React.useCallback(
-    (optionValue: string, isChecked: boolean) => {
-      const currentSelectedValues = value ? value.split(',') : []
-
-      let newSelectedValues: string[]
-      if (isChecked) {
-        newSelectedValues = Array.from(new Set([...currentSelectedValues, optionValue]))
-      } else {
-        newSelectedValues = currentSelectedValues.filter((val) => val !== optionValue)
-      }
-
-      onChange(newSelectedValues.join(','))
-    },
-    [value, onChange]
-  )
-
-  if (config.type === 'select') {
-    return (
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-muted-foreground">{config.label}</label>
-        <Select value={value || ''} onValueChange={onChange}>
-          <SelectTrigger className={`${config.width || 'w-48'} h-9`}>
-            <SelectValue placeholder={config.placeholder || `選擇${config.label}`} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">全部</SelectItem>
-            {options.map((option) => (
-              <SelectItem key={String(option.value)} value={String(option.value)}>
-                {option.label}
-                {option.count && ` (${option.count})`}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    )
-  }
-
-  if (config.type === 'multiSelect') {
-    return (
-      <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-muted-foreground">{config.label}</label>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className={`${config.width || 'w-48'} h-9 justify-start`}>
-              {selectedValues.length > 0
-                ? options
-                    .filter((option) => selectedValues.includes(option.value))
-                    .map((option) => option.label)
-                    .join(', ')
-                : config.placeholder || `選擇${config.label}`}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-48">
-            <DropdownMenuLabel>{config.label}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-
-            {options.map((option) => {
-              const isChecked = selectedValues.includes(option.value)
-              return (
-                <DropdownMenuCheckboxItem
-                  key={option.value}
-                  checked={isChecked}
-                  onCheckedChange={(checked) => handleMultiSelectChange(option.value, checked)}
-                >
-                  {option.label}
-                  {option.count && ` (${option.count})`}
-                </DropdownMenuCheckboxItem>
-              )
-            })}
-
-            {selectedValues.length > 0 && (
-              <>
-                <DropdownMenuSeparator />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start text-destructive"
-                  onClick={() => onChange('')}
-                >
-                  清除所有
-                </Button>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    )
-  }
-
-  return null
-}
-
-interface SearchConfig {
-  value?: string
-  onChange?: (value: string) => void
-  placeholder?: string
-  searchableFields?: string[]
-}
+import { FilterSelector } from './dataTable/FilterSelector'
+import { PaginationControls } from './dataTable/PaginationControls'
+import { ColumnVisibilityToggle } from './dataTable/ColumnVisibilityToggle'
+import { FilterConfig, SearchConfig } from './dataTable/types'
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -388,10 +144,35 @@ export function DataTable<TData, TValue>({
       columnFilters: Object.entries(filtersValue)
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         .filter(([key, value]) => value !== 'all' && value !== '')
-        .map(([key, value]) => ({
-          id: key,
-          value: value
-        })),
+        .map(([key, value]) => {
+          const config = filtersConfig.find((f) => f.key === key)
+          const targetType = config?.targetType
+
+          let finalValue: unknown = value
+
+          if (targetType === 'boolean') {
+            if (value === 'true') {
+              finalValue = true
+            } else if (value === 'false') {
+              finalValue = false
+            }
+          } else if (targetType === 'number') {
+            const num = Number(value)
+            if (!isNaN(num)) {
+              finalValue = num
+            }
+          }
+
+          if (config?.type === 'multiSelect' && typeof value === 'string') {
+            finalValue = value.split(',')
+          }
+
+          return {
+            id: key,
+            value: finalValue
+          }
+        }),
+
       columnVisibility,
       rowSelection: rowSelectionState
     }
@@ -402,7 +183,7 @@ export function DataTable<TData, TValue>({
   return (
     <div className="flex flex-col gap-4">
       {/* 搜尋和篩選區域 */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 ">
         <div className="flex items-center justify-between">
           {/* 搜尋輸入框 */}
           {showSearch && (
@@ -423,7 +204,7 @@ export function DataTable<TData, TValue>({
 
         {/* 篩選器區域 */}
         {showFilters && (
-          <div className="flex flex-wrap gap-4 p-4 bg-muted/10 rounded-lg">
+          <div className="flex flex-wrap w-full gap-4  items-center rounded-lg">
             {filtersConfig.map((filter) => (
               <FilterSelector
                 key={filter.key}

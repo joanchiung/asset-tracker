@@ -22,8 +22,7 @@ export const MOCK_EXCHANGE_RATES: GetExchangeRatesResponse = {
   rates: [
     { currency: 'TWD', rate: '1.0' },
 
-    // TWD 兌換主要法幣
-    { currency: 'USD', rate: '0.03150000' }, // 1 TWD = 0.0315 USD
+    { currency: 'USD', rate: '0.03150000' },
     { currency: 'EUR', rate: '0.02980000' },
     { currency: 'JPY', rate: '4.70000000' },
     { currency: 'GBP', rate: '0.02450000' },
@@ -34,7 +33,6 @@ export const MOCK_EXCHANGE_RATES: GetExchangeRatesResponse = {
     { currency: 'CAD', rate: '0.04300000' },
     { currency: 'AUD', rate: '0.04700000' },
 
-    // TWD 兌換主要加密貨幣 (1 TWD 可兌換的目標貨幣數量)
     { currency: 'BTC', rate: '0.00000041' },
     { currency: 'ETH', rate: '0.00000630' },
     { currency: 'USDT', rate: '0.03140000' },

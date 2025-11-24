@@ -73,7 +73,7 @@ export default function SignUpPage() {
         duration: 4000,
         action: {
           label: '重試',
-          onClick: () => console.log('準備重試註冊')
+          onClick: () => {}
         }
       })
     },

@@ -1,4 +1,3 @@
-// src/app/(asset)/asset-list/components/EditTodoDialog.tsx
 import React from 'react'
 import { Todo } from '@/constant/api/todos/request-response.types'
 import {
@@ -29,10 +28,10 @@ import { format } from 'date-fns'
 interface EditTodoDialogProps {
   isOpen: boolean
   onClose: () => void
-  todo: Todo | null // 傳入當前編輯的 todo
-  onSave: (updatedTodo: Todo) => void // 儲存時的回調
-  isLoading?: boolean // 儲存狀態
-  availableCategories: string[] // 可用的分類
+  todo: Todo | null
+  onSave: (updatedTodo: Todo) => void
+  isLoading?: boolean
+  availableCategories: string[]
 }
 
 export function EditTodoDialog({
@@ -46,7 +45,6 @@ export function EditTodoDialog({
   const [editedTodo, setEditedTodo] = React.useState<Todo | null>(todo)
 
   React.useEffect(() => {
-    // 當傳入的 todo 改變時，更新內部狀態
     setEditedTodo(todo)
   }, [todo])
 
@@ -60,8 +58,8 @@ export function EditTodoDialog({
   }
 
   const handleDateSelect = (date: Date | undefined) => {
-    setEditedTodo(
-      (prev) => (prev ? { ...prev, dueDate: date ? format(date, 'yyyy-MM-dd') : '' } : null) // 將 null 替換為空字符串 ''
+    setEditedTodo((prev) =>
+      prev ? { ...prev, dueDate: date ? format(date, 'yyyy-MM-dd') : '' } : null
     )
   }
 
@@ -76,7 +74,7 @@ export function EditTodoDialog({
     }
   }
 
-  if (!todo) return null // 如果沒有 todo，不渲染彈窗
+  if (!todo) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -144,7 +142,6 @@ export function EditTodoDialog({
                       {category}
                     </SelectItem>
                   ))}
-                  {/* 允許手動輸入，如果 category 不在 availableCategories 中 */}
                   {!availableCategories.includes(editedTodo.category || '') &&
                     editedTodo.category && (
                       <SelectItem value={editedTodo.category}>

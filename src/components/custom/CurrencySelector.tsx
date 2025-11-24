@@ -26,7 +26,6 @@ export function CurrencySelector({
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        {/* 法定貨幣群組 */}
         <div className="px-2 py-1.5 text-sm font-semibold text-gray-900">法定貨幣</div>
         {currencies.fiat.map((currency) => (
           <SelectItem key={currency.code} value={currency.code}>
@@ -37,10 +36,8 @@ export function CurrencySelector({
           </SelectItem>
         ))}
 
-        {/* 分隔線 */}
         <div className="border-t border-gray-200 my-1" />
 
-        {/* 加密貨幣群組 */}
         <div className="px-2 py-1.5 text-sm font-semibold text-gray-900">加密貨幣</div>
         {currencies.crypto.map((currency) => (
           <SelectItem key={currency.code} value={currency.code}>

@@ -1,8 +1,6 @@
-// src/api/exchangeRatesApi.ts
-import { useQuery, UseQueryOptions } from '@tanstack/react-query' // 導入 useQuery 和相關類型
+import { useQuery, UseQueryOptions } from '@tanstack/react-query'
 import { MOCK_EXCHANGE_RATES, GetExchangeRatesResponse } from '../mock/mockExchangeRates'
 
-// 假設的類型定義 (與您的專案保持一致)
 export enum EnumApiMethod {
   GET = 'GET'
 }
@@ -20,10 +18,6 @@ export const fetchExchangeRates = async (
   baseCurrency: string
 ): Promise<GetExchangeRatesApiResult> => {
   if (process.env.NEXT_PUBLIC_USE_MOCK === 'true') {
-    console.log(
-      `--- ⚠️ 使用模擬資料 (MOCK DATA) 進行查詢: GetExchangeRates / Base: ${baseCurrency} ---`
-    )
-
     await new Promise((resolve) => setTimeout(resolve, 800))
 
     const mockResponse: GetExchangeRatesApiResult = {

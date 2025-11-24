@@ -182,10 +182,8 @@ export function DataTable<TData, TValue>({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* 搜尋和篩選區域 */}
       <div className="flex flex-col gap-4 ">
         <div className="flex items-center justify-between">
-          {/* 搜尋輸入框 */}
           {showSearch && (
             <Input
               placeholder={searchPlaceholder}
@@ -194,15 +192,12 @@ export function DataTable<TData, TValue>({
               className="max-w-sm"
             />
           )}
-
-          {/* 右側工具列 */}
           <div className="flex justify-end gap-2">
             {renderToolbar}
             {showColumnVisibilityToggle && <ColumnVisibilityToggle table={table} />}
           </div>
         </div>
 
-        {/* 篩選器區域 */}
         {showFilters && (
           <div className="flex flex-wrap w-full gap-4  items-center rounded-lg">
             {filtersConfig.map((filter) => (
@@ -214,7 +209,6 @@ export function DataTable<TData, TValue>({
               />
             ))}
 
-            {/* 清除篩選按鈕 */}
             {Object.keys(filtersValue).length > 0 && (
               <Button variant="outline" size="sm" onClick={clearAllFilters} className="h-9">
                 清除篩選
@@ -224,7 +218,6 @@ export function DataTable<TData, TValue>({
         )}
       </div>
 
-      {/* 表格 */}
       <div className="rounded-md border">
         <ShadcnTable>
           <TableHeader>
@@ -264,7 +257,6 @@ export function DataTable<TData, TValue>({
         </ShadcnTable>
       </div>
 
-      {/* 分頁控制 */}
       {showPagination && <PaginationControls table={table} totalCount={totalCounts} />}
     </div>
   )

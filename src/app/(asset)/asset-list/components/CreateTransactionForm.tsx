@@ -233,13 +233,11 @@ export default function CreateTransactionForm({ onCreate, loading }: Props) {
 
   return (
     <div>
-      {/* 觸發按鈕 */}
       <Button variant={'outline'} onClick={handleOpenDialog}>
         <Plus className="h-4 w-4 mr-2" />
         <span>新增預算項目</span>
       </Button>
 
-      {/* 彈窗對話框 */}
       <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>

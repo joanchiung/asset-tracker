@@ -91,7 +91,6 @@ export default function AssetSummary() {
 
   const [displayCurrency, setDisplayCurrency] = useState<'TWD' | 'USD'>('TWD')
 
-  // 獲取全部交易紀錄
   const { data } = useQuery({
     queryKey: ['GetTodos'],
     queryFn: () =>
@@ -107,7 +106,6 @@ export default function AssetSummary() {
     })
   })
 
-  // 獲取匯率
   const { data: exchangeRatesData } = useExchangeRatesQuery(displayCurrency, !!token)
 
   const exchangeRates = exchangeRatesData?.rates || []

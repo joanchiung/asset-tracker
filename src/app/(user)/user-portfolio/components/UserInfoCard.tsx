@@ -12,7 +12,6 @@ import { Separator } from '@/components/ui/separator'
 import { User, Phone, Mail, Calendar, Clock, Edit2, Save, X } from 'lucide-react'
 import { UserProfile } from '../page'
 
-// 定義這個元件需要接收的 props
 interface UserInfoCardProps {
   userInfo: UserProfile
   token: string

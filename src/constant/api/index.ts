@@ -31,7 +31,6 @@ export type RootApiList = AuthApiList & UserApiList & TodoApiList & AssetApiList
 export type BasicApiInfo<K extends keyof RootApiList> = Pick<RootApiList[K], 'url' | 'method'>
 
 export const apiList: { [K in keyof RootApiList]: BasicApiInfo<K> } = {
-  // 認證相關
   Login: { url: '/auth/login', method: EnumApiMethod.POST },
   Register: { url: '/auth/register', method: EnumApiMethod.POST },
   Logout: { url: '/auth/logout', method: EnumApiMethod.POST },
@@ -39,11 +38,9 @@ export const apiList: { [K in keyof RootApiList]: BasicApiInfo<K> } = {
   ResetPWD: { url: '/auth/reset-password', method: EnumApiMethod.POST },
   ChangePWD: { url: '/auth/change-password', method: EnumApiMethod.POST },
 
-  // 用戶管理
   GetProfile: { url: '/user/profile', method: EnumApiMethod.GET },
   UpdateProfile: { url: '/user/profile', method: EnumApiMethod.PUT },
 
-  // 待辦事項
   GetTodoStats: { url: '/todos/stats', method: EnumApiMethod.GET },
   GetTodoCategories: { url: '/todos/categories', method: EnumApiMethod.GET },
   BatchUpdateTodos: { url: '/todos/batch', method: EnumApiMethod.PATCH },
@@ -53,7 +50,6 @@ export const apiList: { [K in keyof RootApiList]: BasicApiInfo<K> } = {
   UpdateTodo: { url: '/todos/:id', method: EnumApiMethod.PUT },
   DeleteTodo: { url: '/todos/:id', method: EnumApiMethod.DELETE },
 
-  // 資產相關
   GetAssetSummary: { url: '/assets/summary', method: EnumApiMethod.GET },
   GetExchangeRates: { url: '/exchange/rates', method: EnumApiMethod.GET }
 } satisfies { [K in keyof RootApiList]: BasicApiInfo<K> }

@@ -34,8 +34,6 @@ export function FilterSelector({ config, value, onChange }: FilterSelectorProps)
 
   const handleMultiSelectChange = React.useCallback(
     (optionValue: string, isChecked: boolean) => {
-      console.log('handleMultiSelectChange - 處理選項值:', optionValue, '類型:', typeof optionValue)
-
       const currentSelectedValues = value ? value.split(',') : []
 
       let newSelectedValues: string[]
@@ -45,8 +43,6 @@ export function FilterSelector({ config, value, onChange }: FilterSelectorProps)
         newSelectedValues = currentSelectedValues.filter((val) => val !== optionValue)
       }
       const finalValue = newSelectedValues.join(',')
-      // 💡 檢查點 A-4: 檢查最終輸出字串格式是否正確 (例如 'low,medium')
-      console.log('handleMultiSelectChange - 最終輸出:', finalValue)
 
       onChange(finalValue)
     },
@@ -84,9 +80,6 @@ export function FilterSelector({ config, value, onChange }: FilterSelectorProps)
             <Button variant="outline" className={`${config.width || 'w-48'} h-9 justify-start`}>
               {selectedValues.length > 0
                 ? options
-                    // .filter((option) => selectedValues.includes(option.value))
-                    // .map((option) => option.label)
-                    // .join(', ')
                     .filter((option) => selectedValues.includes(String(option.value)))
                     .map((option) => option.label)
                     .join(', ')
@@ -98,18 +91,12 @@ export function FilterSelector({ config, value, onChange }: FilterSelectorProps)
             <DropdownMenuSeparator />
 
             {options.map((option) => {
-              //   const isChecked = selectedValues.includes(option.value)
               const optionValueString = String(option.value)
               const isChecked = selectedValues.includes(optionValueString)
               return (
                 <DropdownMenuCheckboxItem
-                  // key={option.value}
-                  // checked={isChecked}
-                  // onCheckedChange={(checked) => handleMultiSelectChange(option.value, checked)}
-
-                  key={optionValueString} // 確保 key 是字串
+                  key={optionValueString}
                   checked={isChecked}
-                  // ✅ 修正點 5: 傳遞給 handleMultiSelectChange 的 optionValue 必須是字串
                   onCheckedChange={(checked) => handleMultiSelectChange(optionValueString, checked)}
                 >
                   {option.label}

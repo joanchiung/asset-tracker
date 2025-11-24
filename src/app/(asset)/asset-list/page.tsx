@@ -40,7 +40,6 @@ export default function AssetListPage() {
     sortOrder: 'desc'
   })
 
-  // 獲取交易紀錄
   const { data: { transactions = [], pagination } = {} } = useQuery({
     queryKey: ['GetTodos', queryParams],
     queryFn: () =>
@@ -59,7 +58,6 @@ export default function AssetListPage() {
 
   const totalCounts = pagination?.totalItems ?? 0
 
-  // 更新待辦事項 mutation
   const updateTodoMutation = useMutation({
     mutationFn: ({ id, data }: UpdateTodoPayload) => {
       const searchParams = new URLSearchParams()
@@ -83,7 +81,6 @@ export default function AssetListPage() {
     }
   })
 
-  // 處理編輯彈窗的儲存動作
   const handleSaveEditedTodo = useCallback(
     (updatedTodo: Todo) => {
       updateTodoMutation.mutate(
@@ -101,7 +98,7 @@ export default function AssetListPage() {
         {
           onSuccess: () => {
             setIsEditDialogOpen(false)
-            setEditingTodo(null) // 清空編輯中的 todo
+            setEditingTodo(null)
           }
         }
       )
@@ -109,7 +106,6 @@ export default function AssetListPage() {
     [updateTodoMutation]
   )
 
-  // 創建待處理交易
   const createTodoMutation = useMutation({
     mutationFn: async (todoData: {
       title: string
@@ -138,7 +134,6 @@ export default function AssetListPage() {
     }
   })
 
-  // 獲取待辦事項分類
   const { data: todoCategories } = useQuery({
     queryKey: ['GetTodoCategories'],
     queryFn: () =>
@@ -151,16 +146,13 @@ export default function AssetListPage() {
     select: (data) => data.data?.categories
   })
 
-  // 處理編輯按鈕點擊
   const handleEditTodo = (todo: Todo) => {
     setEditingTodo(todo)
     setIsEditDialogOpen(true)
   }
 
-  // // 處理排序變更 (簡化)
   const handleSortingChange: OnChangeFn<SortingState> = useCallback(
     (updaterOrValue) => {
-      // 取得當前的排序狀態
       const currentSorting = [
         {
           id: queryParams.sortBy || 'created_at',
@@ -218,7 +210,6 @@ export default function AssetListPage() {
     }
   })
 
-  // 批量刪除處理函數
   const handleBatchDelete = async (selectedIds: number[]) => {
     if (selectedIds.length === 0) return
 

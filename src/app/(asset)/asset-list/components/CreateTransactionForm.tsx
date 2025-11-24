@@ -2,63 +2,31 @@
 import React, { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Todo } from '@/constant/api/todos/request-response.types'
-import { Controller } from 'react-hook-form'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
-import {
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  Tag,
-  AlertCircle,
-  Coins,
-  Briefcase,
-  Hammer,
-  TrendingUpIcon,
-  Home,
-  ShoppingCart,
-  BookOpen,
-  Heart,
-  Plane,
-  Car,
-  Flame,
-  Zap,
-  Moon,
-  Plus,
-  DollarSign
-} from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Calendar, Plus, DollarSign } from 'lucide-react'
 import { useCurrencies } from '@/hooks/useCurrencies'
 import { cryptoCurrenciesData } from '@/data/currencies'
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Todo } from '@/constant/api/todos/request-response.types'
+import {
+  createTransactionFormSchema,
+  getDefaultFormValues,
+  type TransactionFormData
+} from './schema/TransactionFormSchema'
+import { type MainTransactionType } from './constants/TransactionConfig'
+import { MainTypeSelector } from './selector/Maintypeselector'
+import { PrioritySelector } from './selector/Priorityselector'
+import { SubTypeSelector } from './selector/Subtypeselector'
+import { CurrencyAmountInput } from './input/Currencyamountinput'
 
 const getAllCurrencies = (majorFiatCodes: string[]) => [
   ...majorFiatCodes,
   ...cryptoCurrenciesData.map((crypto) => crypto.symbol)
 ]
 
-const formSchema = (currencies: string[]) =>
-  z.object({
-    title: z.string().min(1, '請輸入標題'),
-    amount: z.number().positive('金額必須大於 0'),
-    currency: z.enum(currencies as [string, ...string[]]),
-    mainType: z.enum(['income', 'expense']),
-    subType: z.string().min(1, '請選擇子類型'),
-    priority: z.enum(['high', 'medium', 'low']),
-    transactionDate: z.string().min(1, '請選擇日期')
-  })
-
-interface Props {
+interface CreateTransactionFormProps {
   onCreate: (transactionData: {
     title: string
     description?: string
@@ -70,83 +38,14 @@ interface Props {
   availableCategories: string[]
 }
 
-const typeOptions = {
-  income: [
-    {
-      value: '配息',
-      label: '配息',
-      desc: '股票、基金配息收入',
-      icon: Coins
-    },
-    {
-      value: '本業收入',
-      label: '本業收入',
-      desc: '薪資、獎金等',
-      icon: Briefcase
-    },
-    {
-      value: '接案收入',
-      label: '接案收入',
-      desc: '自由接案、兼職收入',
-      icon: Hammer
-    },
-    {
-      value: '投資收益',
-      label: '投資收益',
-      desc: '股票、加密貨幣收益',
-      icon: TrendingUpIcon
-    }
-  ],
-  expense: [
-    {
-      value: '貸款',
-      label: '貸款',
-      desc: '房貸、車貸等',
-      icon: Home
-    },
-    {
-      value: '日常生活費',
-      label: '日常生活費',
-      desc: '食物、用品等',
-      icon: ShoppingCart
-    },
-    {
-      value: '學習資金',
-      label: '學習資金',
-      desc: '課程、書籍等',
-      icon: BookOpen
-    },
-    {
-      value: '醫療保險',
-      label: '醫療保險',
-      desc: '醫療費用、保險費',
-      icon: Heart
-    },
-    {
-      value: '旅遊',
-      label: '旅遊',
-      desc: '旅行、娛樂支出',
-      icon: Plane
-    },
-    {
-      value: '交通費',
-      label: '交通費',
-      desc: '油費、大眾運輸等',
-      icon: Car
-    }
-  ]
-}
-
-export default function CreateTransactionForm({ onCreate, loading }: Props) {
+export default function CreateTransactionForm({ onCreate, loading }: CreateTransactionFormProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const { currencies } = useCurrencies()
   const majorFiatCodes = currencies.fiat.map((fiat) => fiat.code)
-
   const allCurrencies = getAllCurrencies(majorFiatCodes)
 
-  const currentFormSchema = formSchema(allCurrencies)
-  type FormData = z.infer<typeof currentFormSchema>
+  const currentFormSchema = createTransactionFormSchema(allCurrencies)
 
   const {
     register,
@@ -155,22 +54,18 @@ export default function CreateTransactionForm({ onCreate, loading }: Props) {
     watch,
     control,
     formState: { errors }
-  } = useForm<FormData>({
+  } = useForm<TransactionFormData>({
     resolver: zodResolver(currentFormSchema),
-    defaultValues: {
-      priority: 'medium',
-      mainType: 'income',
-      currency: 'TWD',
-      subType: '',
-      transactionDate: new Date().toISOString().split('T')[0]
-    }
+    defaultValues: getDefaultFormValues()
   })
 
-  const watchedMainType = watch('mainType')
+  const watchedMainType = watch('mainType') as MainTransactionType
   const watchedAmount = watch('amount')
   const watchedCurrency = watch('currency')
+  const watchedTitle = watch('title')
+  const watchedTransactionDate = watch('transactionDate')
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = (data: TransactionFormData) => {
     const transactionData = {
       title: data.title,
       description: `${data.mainType === 'income' ? '收入' : '支出'}: ${data.amount} ${
@@ -182,34 +77,8 @@ export default function CreateTransactionForm({ onCreate, loading }: Props) {
     }
 
     onCreate(transactionData)
-
     setIsDialogOpen(false)
-
-    reset({
-      ...data,
-      title: '',
-      amount: 0,
-      subType: '',
-      transactionDate: new Date().toISOString().split('T')[0]
-    })
-  }
-
-  const priorityConfig = {
-    high: {
-      label: '重要',
-      color: 'border-red-500 bg-red-50 text-red-700',
-      icon: Flame
-    },
-    medium: {
-      label: '中等',
-      color: 'border-yellow-500 bg-yellow-50 text-yellow-700',
-      icon: Zap
-    },
-    low: {
-      label: '一般',
-      color: 'border-green-500 bg-green-50 text-green-700',
-      icon: Moon
-    }
+    reset(getDefaultFormValues())
   }
 
   const handleOpenDialog = () => {
@@ -219,21 +88,13 @@ export default function CreateTransactionForm({ onCreate, loading }: Props) {
   const handleCloseDialog = (open: boolean) => {
     setIsDialogOpen(open)
     if (!open) {
-      reset({
-        priority: 'medium',
-        mainType: 'income',
-        currency: 'TWD',
-        subType: '',
-        transactionDate: new Date().toISOString().split('T')[0],
-        title: '',
-        amount: 0
-      })
+      reset(getDefaultFormValues())
     }
   }
 
   return (
     <div>
-      <Button variant={'outline'} onClick={handleOpenDialog}>
+      <Button variant="outline" onClick={handleOpenDialog}>
         <Plus className="h-4 w-4 mr-2" />
         <span>新增預算項目</span>
       </Button>
@@ -248,48 +109,7 @@ export default function CreateTransactionForm({ onCreate, loading }: Props) {
           </DialogHeader>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <Tag className="h-4 w-4" />
-                交易類型 <span className="text-red-500">*</span>
-              </label>
-
-              <Controller
-                name="mainType"
-                control={control}
-                render={({ field }) => (
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => field.onChange('income')}
-                      className={`p-4 rounded-lg border-2 transition-all ${
-                        field.value === 'income'
-                          ? 'border-green-500 bg-green-50 text-green-700'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <TrendingUp className="h-6 w-6 mx-auto mb-2" />
-                      <div className="font-medium">收入</div>
-                      <div className="text-xs text-gray-500">錢進來了</div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => field.onChange('expense')}
-                      className={`p-4 rounded-lg border-2 transition-all ${
-                        field.value === 'expense'
-                          ? 'border-red-500 bg-red-50 text-red-700'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                    >
-                      <TrendingDown className="h-6 w-6 mx-auto mb-2" />
-                      <div className="font-medium">支出</div>
-                      <div className="text-xs text-gray-500">錢花出去了</div>
-                    </button>
-                  </div>
-                )}
-              />
-            </div>
+            <MainTypeSelector control={control} error={errors.mainType} />
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
@@ -303,132 +123,18 @@ export default function CreateTransactionForm({ onCreate, loading }: Props) {
               {errors.title && <p className="text-sm text-red-600">{errors.title.message}</p>}
             </div>
 
-            <div className="space-y-4">
-              <label className="text-sm font-medium text-gray-700">
-                金額與幣種 <span className="text-red-500">*</span>
-              </label>
+            <CurrencyAmountInput
+              register={register}
+              control={control}
+              majorFiatCodes={majorFiatCodes}
+              amountError={errors.amount}
+              currencyError={errors.currency}
+            />
 
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <Input
-                    {...register('amount', { valueAsNumber: true })}
-                    type="number"
-                    step="any"
-                    placeholder="0.00"
-                    className="text-lg font-mono"
-                  />
-                  {errors.amount && (
-                    <p className="text-sm text-red-600 mt-1">{errors.amount.message}</p>
-                  )}
-                </div>
-
-                <Controller
-                  name="currency"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
-                          法幣
-                        </div>
-                        {majorFiatCodes.map((currency) => (
-                          <SelectItem key={currency} value={currency}>
-                            {currency}
-                          </SelectItem>
-                        ))}
-
-                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
-                          加密貨幣
-                        </div>
-                        {cryptoCurrenciesData.map((crypto) => (
-                          <SelectItem key={crypto.symbol} value={crypto.symbol}>
-                            {crypto.symbol}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-gray-700">
-                {watchedMainType === 'income' ? '收入' : '支出'}類別{' '}
-                <span className="text-red-500">*</span>
-              </label>
-
-              <Controller
-                name="subType"
-                control={control}
-                render={({ field }) => (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {typeOptions[watchedMainType].map((option) => {
-                      const IconComponent = option.icon
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => field.onChange(option.value)}
-                          className={`p-3 text-left rounded-lg border transition-all ${
-                            field.value === option.value
-                              ? 'border-blue-500 bg-blue-50 text-blue-700'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 mb-1">
-                            <IconComponent className="h-4 w-4" />
-                            <span className="font-medium text-sm">{option.label}</span>
-                          </div>
-                          <div className="text-xs text-gray-500">{option.desc}</div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
-              />
-              {errors.subType && <p className="text-sm text-red-600">{errors.subType.message}</p>}
-            </div>
+            <SubTypeSelector control={control} mainType={watchedMainType} error={errors.subType} />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  優先級
-                </label>
-
-                <Controller
-                  name="priority"
-                  control={control}
-                  render={({ field }) => (
-                    <div className="flex flex-row gap-2">
-                      {Object.entries(priorityConfig).map(([value, config]) => {
-                        const IconComponent = config.icon
-                        return (
-                          <button
-                            key={value}
-                            type="button"
-                            onClick={() => field.onChange(value)}
-                            className={`w-full p-2 text-left rounded-lg border transition-all ${
-                              field.value === value
-                                ? config.color
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2">
-                              <IconComponent className="h-4 w-4" />
-                              <span className="text-sm font-medium">{config.label}</span>
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                />
-              </div>
+              <PrioritySelector control={control} error={errors.priority} />
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
@@ -442,9 +148,9 @@ export default function CreateTransactionForm({ onCreate, loading }: Props) {
               </div>
             </div>
 
-            {watchedAmount > 0 && (
+            {watchedAmount && watchedAmount > 0 && (
               <div className="bg-gray-100 rounded-lg p-6">
-                <div className="flex items-center gap-2 text-sm">
+                <div className="flex items-center gap-2 text-sm flex-wrap">
                   <Badge
                     variant={watchedMainType === 'income' ? 'default' : 'destructive'}
                     className="text-xs"
@@ -452,12 +158,15 @@ export default function CreateTransactionForm({ onCreate, loading }: Props) {
                     {watchedMainType === 'income' ? '收入' : '支出'}
                   </Badge>
 
-                  <span className="text-gray-600">
-                    {watch('transactionDate') &&
-                      new Date(watch('transactionDate')).toLocaleDateString('zh-TW')}
-                  </span>
+                  {watchedTransactionDate && (
+                    <span className="text-gray-600">
+                      {new Date(watchedTransactionDate).toLocaleDateString('zh-TW')}
+                    </span>
+                  )}
 
-                  <span className="text-gray-800 font-medium">{watch('title') || ' '}</span>
+                  {watchedTitle && (
+                    <span className="text-gray-800 font-medium">{watchedTitle}</span>
+                  )}
 
                   <span className="text-lg font-mono font-bold">
                     {watchedAmount} {watchedCurrency}

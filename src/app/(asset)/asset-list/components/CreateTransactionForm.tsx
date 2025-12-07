@@ -12,14 +12,13 @@ import { cryptoCurrenciesData } from '@/data/currencies'
 import { Todo } from '@/constant/api/todos/request-response.types'
 import {
   createTransactionFormSchema,
-  getDefaultFormValues,
   type TransactionFormData
 } from './schema/TransactionFormSchema'
 import { type MainTransactionType } from './constants/TransactionConfig'
 import { MainTypeSelector } from './selector/Maintypeselector'
 import { PrioritySelector } from './selector/Priorityselector'
 import { SubTypeSelector } from './selector/Subtypeselector'
-import { CurrencyAmountInput } from './input/Currencyamountinput'
+import CurrencyAmountInput from './input/Currencyamountinput'
 
 const getAllCurrencies = (majorFiatCodes: string[]) => [
   ...majorFiatCodes,
@@ -39,7 +38,7 @@ interface CreateTransactionFormProps {
 }
 
 export default function CreateTransactionForm({ onCreate, loading }: CreateTransactionFormProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
 
   const { currencies } = useCurrencies()
   const majorFiatCodes = currencies.fiat.map((fiat) => fiat.code)
@@ -53,10 +52,19 @@ export default function CreateTransactionForm({ onCreate, loading }: CreateTrans
     reset,
     watch,
     control,
+    setValue,
     formState: { errors }
   } = useForm<TransactionFormData>({
     resolver: zodResolver(currentFormSchema),
-    defaultValues: getDefaultFormValues()
+    defaultValues: {
+      priority: 'medium',
+      mainType: 'income',
+      currency: 'TWD',
+      subType: '',
+      transactionDate: new Date().toISOString().split('T')[0],
+      title: '',
+      amount: ''
+    }
   })
 
   const watchedMainType = watch('mainType') as MainTransactionType
@@ -77,29 +85,25 @@ export default function CreateTransactionForm({ onCreate, loading }: CreateTrans
     }
 
     onCreate(transactionData)
-    setIsDialogOpen(false)
-    reset(getDefaultFormValues())
-  }
-
-  const handleOpenDialog = () => {
-    setIsDialogOpen(true)
+    setIsOpen(false)
+    reset()
   }
 
   const handleCloseDialog = (open: boolean) => {
-    setIsDialogOpen(open)
+    setIsOpen(open)
     if (!open) {
-      reset(getDefaultFormValues())
+      reset()
     }
   }
 
   return (
     <div>
-      <Button variant="outline" onClick={handleOpenDialog}>
+      <Button variant="outline" onClick={() => setIsOpen(true)}>
         <Plus className="h-4 w-4 mr-2" />
         <span>新增預算項目</span>
       </Button>
 
-      <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
+      <Dialog open={isOpen} onOpenChange={handleCloseDialog}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl">
@@ -124,11 +128,13 @@ export default function CreateTransactionForm({ onCreate, loading }: CreateTrans
             </div>
 
             <CurrencyAmountInput
-              register={register}
-              control={control}
+              amount={watchedAmount?.toString() ?? ''}
+              currency={watchedCurrency}
+              onAmountChange={(value) => setValue('amount', value)}
+              onCurrencyChange={(value) => setValue('currency', value)}
               majorFiatCodes={majorFiatCodes}
-              amountError={errors.amount}
-              currencyError={errors.currency}
+              amountError={errors.amount?.message}
+              currencyError={errors.currency?.message}
             />
 
             <SubTypeSelector control={control} mainType={watchedMainType} error={errors.subType} />
@@ -148,7 +154,7 @@ export default function CreateTransactionForm({ onCreate, loading }: CreateTrans
               </div>
             </div>
 
-            {watchedAmount && watchedAmount > 0 && (
+            {watchedAmount && (
               <div className="bg-gray-100 rounded-lg p-6">
                 <div className="flex items-center gap-2 text-sm flex-wrap">
                   <Badge
@@ -179,7 +185,7 @@ export default function CreateTransactionForm({ onCreate, loading }: CreateTrans
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsDialogOpen(false)}
+                onClick={() => setIsOpen(false)}
                 className="flex-1"
               >
                 取消

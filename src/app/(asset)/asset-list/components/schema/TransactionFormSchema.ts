@@ -7,11 +7,7 @@ import { z } from 'zod'
 export const createTransactionFormSchema = (currencies: string[]) =>
   z.object({
     title: z.string().min(1, '請輸入標題'),
-    amount: z
-      .number({
-        error: (issue) => (issue.input === undefined ? '請輸入金額' : '請輸入有效的數字')
-      })
-      .positive('金額必須大於 0'),
+    amount: z.string().min(1, '請輸入金額'),
     currency: z.enum(currencies as [string, ...string[]]),
     mainType: z.enum(['income', 'expense']),
     subType: z.string().min(1, '請選擇子類型'),
@@ -23,16 +19,3 @@ export const createTransactionFormSchema = (currencies: string[]) =>
  * 交易表單數據類型（需要在使用時根據實際 currencies 推導）
  */
 export type TransactionFormData = z.infer<ReturnType<typeof createTransactionFormSchema>>
-
-/**
- * 默認表單值
- */
-export const getDefaultFormValues = (): Partial<TransactionFormData> => ({
-  priority: 'medium',
-  mainType: 'income',
-  currency: 'TWD',
-  subType: '',
-  transactionDate: new Date().toISOString().split('T')[0],
-  title: '',
-  amount: undefined
-})

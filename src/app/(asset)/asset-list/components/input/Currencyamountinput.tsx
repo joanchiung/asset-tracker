@@ -1,6 +1,6 @@
 import React from 'react'
-import { Control, Controller, UseFormRegister, FieldError } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -8,84 +8,88 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { TransactionFormData } from '../schema/TransactionFormSchema'
 import { cryptoCurrenciesData } from '@/data/currencies'
 
-interface CurrencyAmountInputProps {
-  register: UseFormRegister<TransactionFormData>
-  control: Control<TransactionFormData>
+interface Props {
+  amount: string
+  currency: string
+  onAmountChange: (value: string) => void
+  onCurrencyChange: (value: string) => void
   majorFiatCodes: string[]
-  amountError?: FieldError
-  currencyError?: FieldError
+  amountError?: string
+  currencyError?: string
 }
 
-export const CurrencyAmountInput: React.FC<CurrencyAmountInputProps> = ({
-  register,
-  control,
+export default function CurrencyAmountInput({
+  amount,
+  currency,
+  onAmountChange,
+  onCurrencyChange,
   majorFiatCodes,
   amountError,
   currencyError
-}) => {
+}: Props) {
   return (
     <div className="space-y-4">
-      <label className="text-sm font-medium text-gray-700">
+      <Label className="text-sm font-medium text-gray-700">
         金額與幣種 <span className="text-red-500">*</span>
-      </label>
+      </Label>
 
       <div className="flex gap-3">
         <div className="flex-1">
           <Input
-            {...register('amount', {
-              valueAsNumber: true,
-              setValueAs: (value) => {
-                if (value === '' || value === null || value === undefined) {
-                  return undefined
-                }
-                const parsed = parseFloat(value)
-                return isNaN(parsed) ? undefined : parsed
-              }
-            })}
-            type="number"
-            step="any"
+            type="text"
+            value={amount}
+            onChange={(e) => onAmountChange(e.target.value)}
             placeholder="0.00"
             className="text-lg font-mono"
+            aria-label="交易金額"
+            aria-invalid={!!amountError}
           />
-          {amountError && <p className="text-sm text-red-600 mt-1">{amountError.message}</p>}
+          <ErrorMessage message={amountError} />
         </div>
 
-        <Controller
-          name="currency"
-          control={control}
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
-                  法幣
-                </div>
-                {majorFiatCodes.map((currency) => (
-                  <SelectItem key={currency} value={currency}>
-                    {currency}
-                  </SelectItem>
-                ))}
+        <div className="w-[250px]">
+          <Select value={currency} onValueChange={onCurrencyChange}>
+            <SelectTrigger aria-label="選擇幣種">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">法幣</div>
+              {majorFiatCodes.map((code) => (
+                <SelectItem key={code} value={code}>
+                  {code}
+                </SelectItem>
+              ))}
 
-                <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
-                  加密貨幣
-                </div>
-                {cryptoCurrenciesData.map((crypto) => (
-                  <SelectItem key={crypto.symbol} value={crypto.symbol}>
-                    {crypto.symbol}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        />
+              <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 bg-gray-50">
+                加密貨幣
+              </div>
+              {cryptoCurrenciesData.map((crypto) => (
+                <SelectItem key={crypto.symbol} value={crypto.symbol}>
+                  {crypto.symbol}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <ErrorMessage message={currencyError} />
+        </div>
       </div>
-
-      {currencyError && <p className="text-sm text-red-600">{currencyError.message}</p>}
     </div>
+  )
+}
+
+interface ErrorMessageProps {
+  message?: string
+  id?: string
+}
+
+export function ErrorMessage({ message, id }: ErrorMessageProps) {
+  if (!message) return null
+
+  return (
+    <p id={id} className="text-sm text-red-600 mt-1">
+      {message}
+    </p>
   )
 }

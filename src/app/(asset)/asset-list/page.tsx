@@ -1,11 +1,10 @@
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSession } from 'next-auth/react'
 import { toast } from 'sonner'
 import { fetchFunc } from '@/lib/axios'
-import CreateTransactionForm from './components/CreateTransactionForm'
 import AssetSummary from './components/AssetSummary'
 import { getTodoColumns } from './components/TodoColumns'
 import { DataTable } from './components/DataTable'
@@ -16,6 +15,7 @@ import { Todo } from '@/constant/api/todos/request-response.types'
 import { EditTodoDialog } from './components/EditTodoDialog'
 import { Button } from '@/components/ui/button'
 import { FilterConfig } from './components/dataTable/types'
+import BudgetItemDialog from './components/BudgetItemDialog'
 
 const VALID_SORT_FIELDS = ['created_at', 'updated_at', 'due_date', 'priority', 'title'] as const
 type ValidSortField = (typeof VALID_SORT_FIELDS)[number]
@@ -105,34 +105,6 @@ export default function AssetListPage() {
     },
     [updateTodoMutation]
   )
-
-  const createTodoMutation = useMutation({
-    mutationFn: async (todoData: {
-      title: string
-      description?: string
-      priority?: 'low' | 'medium' | 'high'
-      category?: string
-      dueDate?: string
-    }) => {
-      return await fetchFunc({
-        key: 'CreateTodo',
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        request: todoData
-      })
-    },
-    onSuccess: () => {
-      toast.success('待處理紀錄已建立')
-      queryClient.invalidateQueries({
-        queryKey: ['GetTodos', queryParams]
-      })
-      queryClient.invalidateQueries({ queryKey: ['GetTodoCategories'] })
-    },
-    onError: (error) => {
-      toast.error('建立失敗', { description: error.message || '請稍後再試' })
-    }
-  })
 
   const { data: todoCategories } = useQuery({
     queryKey: ['GetTodoCategories'],
@@ -279,11 +251,7 @@ export default function AssetListPage() {
         <Card className="w-full lg:flex-1 max-w-full">
           <CardHeader className="flex flex-row gap-2 justify-between items-center">
             <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">資產排程表</CardTitle>
-            <CreateTransactionForm
-              onCreate={createTodoMutation.mutate}
-              loading={createTodoMutation.isPending}
-              availableCategories={todoCategories?.map((cat) => cat.name) || []}
-            />
+            <BudgetItemDialog />
           </CardHeader>
           <CardContent className="flex flex-col gap-6 px-2 sm:px-6 w-full">
             <DataTable
